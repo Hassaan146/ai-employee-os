@@ -1,0 +1,32 @@
+# FastAPI Core Framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# Database & ORM
+sqlalchemy>=2.0.28
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+alembic>=1.13.1
+
+# Security & Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+
+# Async HTTP & Task Queues
+httpx>=0.27.0
+celery>=5.3.6
+redis>=5.0.3
+
+# AI Integration & Tool SDKs
+openai>=1.14.0
+google-genai>=0.1.1
+anthropic>=0.19.0
+
+# Utility & Helpers
+reportlab>=4.1.0
+pypdf>=4.1.0
+python-dotenv>=1.0.1
+email-validator>=2.1.1

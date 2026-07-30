@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+*.env
+.env.*
+!.env.example
+*.log
+
+# Node / Frontend
+node_modules/
+.next/
+dist/
+build/
+out/
+.vercel
+
+# AI / Cache
+.cache/
+*.chromadb/
+
+# OS / IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
