@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum, JSON, func
-from sqlalchemy.orm import relationship
+import uuid
 import enum
+from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, func
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class AIRoleType(str, enum.Enum):
@@ -16,10 +17,10 @@ class AIRoleType(str, enum.Enum):
 class AIEmployee(Base):
     __tablename__ = "ai_employees"
 
-    id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
-    role_type = Column(Enum(AIRoleType), default=AIRoleType.EXECUTIVE, nullable=False)
+    role_type = Column(SQLEnum(AIRoleType), default=AIRoleType.EXECUTIVE, nullable=False)
     system_prompt = Column(Text, nullable=True)
     permissions = Column(JSON, default={}, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -27,5 +28,4 @@ class AIEmployee(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    # Relationships
     company = relationship("Company", back_populates="ai_employees")
