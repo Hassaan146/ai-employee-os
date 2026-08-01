@@ -21,4 +21,23 @@ AI Employee OS/
    - Windows: `venv\Scripts\activate`
    - Linux/Mac: `source venv/bin/activate`
 4. Install dependencies: `pip install -r requirements.txt`
-5. Run dev server: `uvicorn app.main:app --reload`
+5. Run dev server: `uvicorn app.main:app --reload --port 8000`
+
+## Quick Start (AI Service)
+
+1. Navigate to the AI module: `cd ai`
+2. Install dependencies: `uv sync`
+3. Run dev server: `uvicorn app.main:app --reload --port 8001`
+
+## Quick Start (Frontend)
+
+1. Navigate to frontend: `cd frontend`
+2. Install dependencies: `npm install`
+3. Copy environment template: `cp .env.example .env.local`
+4. Run dev server: `npm run dev`
+
+The console is served at <http://localhost:3000>. Its **System status** page shows
+which services are reachable and which endpoints are live.
+
+See [frontend/README.md](./frontend/README.md) for details and
+[frontend/PHASES.md](./frontend/PHASES.md) for the Phase 1 / Phase 2 delivery plan.
