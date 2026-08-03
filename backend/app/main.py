@@ -2,10 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
 from app import models
-from app.api import auth, customers, leads, pipeline
+from app.api import auth, customers, leads, pipeline, activities
 
 # Auto-create all database tables on startup
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Employee OS API",
