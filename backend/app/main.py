@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
-from app import models  
-from app.api import customers, leads, pipeline, activities
+from app import models
+from app.api import auth, customers, leads, pipeline
 
-# Base.metadata.create_all(bind=engine)  # TODO: uncomment once Member 1 pushes Companies/Users models
+# Auto-create all database tables on startup
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Employee OS API",
@@ -23,7 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register CRM routers  <-- yeh block add karo
+# Register Routers
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)

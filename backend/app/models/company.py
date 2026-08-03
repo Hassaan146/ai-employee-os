@@ -12,10 +12,12 @@ class PricingTier(str, enum.Enum):
 class Company(Base):
     __tablename__ = "companies"
 
+    #fields
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     name = Column(String(255), nullable=False)
     pricing_tier = Column(SQLEnum(PricingTier), default=PricingTier.BASIC, nullable=False)
     
+    #some deafult parameters
     max_users = Column(Integer, default=1, nullable=False)
     max_ai_requests = Column(Integer, default=500, nullable=False)
     max_storage_gb = Column(Integer, default=1, nullable=False)

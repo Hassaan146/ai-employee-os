@@ -9,7 +9,7 @@ class SalesPipeline(Base):
     __tablename__ = "sales_pipelines"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
 
     stage = Column(String, default="new")  # new, contacted, qualified, proposal, negotiation, won, lost
@@ -20,6 +20,5 @@ class SalesPipeline(Base):
 
     changed_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # kis user ne stage change ki
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     lead = relationship("Lead", back_populates="pipeline_entries")
