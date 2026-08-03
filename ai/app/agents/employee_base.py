@@ -1,12 +1,3 @@
-"""
-BaseAgent
----------
-Every AI employee (Sales, Finance, Support, HR, Executive) extends
-this class. It handles the generic "send message, let the model call
-tools if needed, return final answer" loop, so each agent only needs
-to define its system prompt and which tools it has access to.
-"""
-
 import os
 import json
 from dotenv import load_dotenv
@@ -22,7 +13,7 @@ class BaseAgent:
             name: short id for this agent, e.g. "sales".
             system_prompt: persona/instructions for this agent.
             tool_names: list of tool names (from tools.TOOLS) this agent can call.
-            model: which OpenAI model to use.
+            model: which model to use.
         """
         self.name = name
         self.system_prompt = system_prompt
@@ -32,7 +23,8 @@ class BaseAgent:
     def handle(self, message: str, context: str = "") -> dict:
         """
         Handle one user message end-to-end: call the LLM, execute any
-        tool calls it requests, then get a final response.
+        tool calls it requests (across multiple rounds if needed),
+        then return the final response.
 
         Args:
             message: the user's message/request.
@@ -58,18 +50,21 @@ class BaseAgent:
             {"role": "user", "content": user_content},
         ]
 
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            tools=tools_schema if tools_schema else None,
-        )
-
-        reply = response.choices[0].message
         tool_calls_made = []
+        max_iterations = 5  # safety limit, avoids infinite tool-calling loops
 
-        # If the model wants to call a tool, execute it and ask again
-        # with the tool's result added to the conversation.
-        if reply.tool_calls:
+        for _ in range(max_iterations):
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=tools_schema if tools_schema else None,
+            )
+
+            reply = response.choices[0].message
+
+            if not reply.tool_calls:
+                return {"response": reply.content, "tool_calls": tool_calls_made}
+
             messages.append(reply)
             for call in reply.tool_calls:
                 fn_name = call.function.name
@@ -83,9 +78,7 @@ class BaseAgent:
                     "content": json.dumps(result),
                 })
 
-            final = client.chat.completions.create(model=self.model, messages=messages)
-            final_text = final.choices[0].message.content
-        else:
-            final_text = reply.content
-
-        return {"response": final_text, "tool_calls": tool_calls_made}
+        return {
+            "response": "I've completed several steps but may need to continue — please ask a follow-up if needed.",
+            "tool_calls": tool_calls_made,
+        }

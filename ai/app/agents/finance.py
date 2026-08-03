@@ -7,5 +7,5 @@ class FinanceAgent(BaseAgent):
         super().__init__(
             name="finance",
             system_prompt=FINANCE_SYSTEM_PROMPT,
-            tool_names=["search_crm"],
+            tool_names=["search_crm", "generate_invoice"],
         )

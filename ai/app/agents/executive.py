@@ -1,4 +1,4 @@
-from agents.base import BaseAgent
+from agents.employee_base import BaseAgent
 from prompts import EXECUTIVE_SYSTEM_PROMPT
 
 
@@ -7,5 +7,5 @@ class ExecutiveAgent(BaseAgent):
         super().__init__(
             name="executive",
             system_prompt=EXECUTIVE_SYSTEM_PROMPT,
-            tool_names=["search_crm"],
+            tool_names=["search_crm", "send_email", "create_meeting", "generate_quotation"],
         )

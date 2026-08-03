@@ -7,5 +7,5 @@ class SupportAgent(BaseAgent):
         super().__init__(
             name="support",
             system_prompt=SUPPORT_SYSTEM_PROMPT,
-            tool_names=["search_crm"],
+            tool_names=["search_crm", "send_email"],
         )

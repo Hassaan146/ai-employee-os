@@ -6,7 +6,7 @@ search_crm(customer_name) -> dict
 Currently backed by mock/fake data so agents can be built and tested
 immediately, without waiting on a real CRM integration. Swap the
 MOCK_CUSTOMERS lookup for a real database/API call later — the
-function signature stays the same, so nothing else needs to change.
+function signature stays the same.
 """
 
 MOCK_CUSTOMERS = {
@@ -26,8 +26,6 @@ MOCK_CUSTOMERS = {
     },
 }
 
-# OpenAI-style function/tool schema — this is what gets passed to the
-# LLM so it knows this tool exists and how to call it.
 CRM_TOOL_SCHEMA = {
     "type": "function",
     "function": {
@@ -50,9 +48,6 @@ CRM_TOOL_SCHEMA = {
 def search_crm(customer_name: str) -> dict:
     """
     Look up a customer by name (case-insensitive partial match).
-
-    Returns a dict with customer info, or a "not_found" flag if no
-    match exists.
     """
     key = customer_name.strip().lower()
     for name_key, record in MOCK_CUSTOMERS.items():

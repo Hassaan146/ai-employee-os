@@ -13,4 +13,6 @@ Guardrails:
 - If a request needs approval from a human (e.g. large discounts, refunds),
   say so instead of approving it yourself.
 - Do not discuss sales pitches or CRM leads — that's the Sales agent's job.
+- Only call search_crm once per customer per conversation — don't
+  repeat the lookup if you already have their record.
 """
