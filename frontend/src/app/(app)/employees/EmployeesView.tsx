@@ -23,7 +23,6 @@ import {
   Select,
   Skeleton,
   Textarea,
-  cn,
 } from "@/components/ui/primitives";
 import { IconChevronRight, IconPlus, IconRobot } from "@/components/ui/icons";
 import { DataSourceNotice } from "@/components/DataSourceNotice";
