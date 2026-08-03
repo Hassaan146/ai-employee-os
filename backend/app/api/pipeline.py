@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.pipeline_rules import is_valid_transition
 from app.models.sales_pipeline import SalesPipeline
+from app.models.activity_timeline import ActivityTimeline
 from app.schemas.pipeline import PipelineCreate, PipelineUpdate, PipelineResponse
 
 router = APIRouter(prefix="/api/v1/crm/pipeline", tags=["Pipeline"])
@@ -40,9 +42,28 @@ def update_pipeline_entry(pipeline_id: int, updates: PipelineUpdate, db: Session
 
     update_data = updates.model_dump(exclude_unset=True)
 
-    # agar stage change ho rahi hai, toh previous_stage save kar lo (Day 3 ke transition logic ki base)
+    # Agar stage change ho rahi hai, toh pehle validate karo
     if "stage" in update_data and update_data["stage"] != entry.stage:
+        new_stage = update_data["stage"]
+
+        if not is_valid_transition(entry.stage, new_stage):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid stage transition: '{entry.stage}' -> '{new_stage}'"
+            )
+
+        # previous stage save karo
         entry.previous_stage = entry.stage
+
+        # Activity log automatically create karo transition ke liye
+        activity = ActivityTimeline(
+            company_id=entry.company_id,
+            lead_id=entry.lead_id,
+            activity_type="stage_change",
+            description=f"Pipeline stage changed from '{entry.stage}' to '{new_stage}'",
+            performed_by=update_data.get("changed_by"),
+        )
+        db.add(activity)
 
     for field, value in update_data.items():
         setattr(entry, field, value)
