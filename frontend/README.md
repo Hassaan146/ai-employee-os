@@ -129,3 +129,24 @@ npm run build
 ```bash
 npm run typecheck
 ```
+
+```bash
+npm run lint
+```
+
+```bash
+npm run test
+```
+
+Use `npm run test:watch` while developing.
+
+## Quality gate
+
+Four checks run on every pull request via `.github/workflows/frontend-ci.yml`:
+typecheck, lint, test, build. Run them locally before pushing — the workflow uses
+`npm ci`, so CI matches your lockfile exactly.
+
+Tests use Vitest with Testing Library and jsdom. They concentrate on the API
+layer, since the preview-fallback rules are the part of this codebase where a
+mistake would be least visible: a wrong rule could render fixture data as if it
+were live. `src/lib/api/client.test.ts` pins those rules in both directions.

@@ -8,7 +8,7 @@ surface described in `EmployeeOS.md`.
 
 | Phase | Share | Theme | Gate |
 |-------|-------|-------|------|
-| Phase 1 | 30% | Foundation + UI for the backend that exists today | ✅ Delivered |
+| Phase 1 | 30% | Foundation + UI for the backend that exists today | ✅ **Complete** |
 | Phase 2 | 70% | Full product surface | Blocked on backend endpoints |
 
 ---
@@ -58,11 +58,37 @@ then falls back to fixtures in `src/lib/fixtures.ts` and renders a **"Preview da
 banner naming the missing endpoint. Nothing placeholder is ever presented as live.
 Set `NEXT_PUBLIC_ALLOW_PREVIEW_DATA=false` to disable fallbacks entirely.
 
-### Remaining Phase 1 items
+### Quality gate
 
-- [ ] Component tests (Vitest + Testing Library) for the API layer and primitives
-- [ ] CI workflow: typecheck, lint, build on every PR
-- [ ] Swap fixtures for live data as each backend route lands (no UI changes needed)
+| Check | Command | Status |
+|-------|---------|--------|
+| Types | `npm run typecheck` | ✅ passes |
+| Lint | `npm run lint` | ✅ passes |
+| Tests | `npm run test` | ✅ 54 tests, 5 files |
+| Build | `npm run build` | ✅ 11 routes |
+
+All four run on every pull request via `.github/workflows/frontend-ci.yml`.
+
+**Test coverage focuses on the logic most likely to cause silent damage:**
+
+- `client.test.ts` (16) — error normalisation, timeouts, and the exact rules for
+  when a request may fall back to preview data. A 404/405/timeout/unreachable
+  degrades; a 401/403/422/500 is rethrown so real failures are never masked.
+- `endpoints.test.ts` (13) — pins every endpoint path and request body to the
+  agreed contract, and proves a view switches to live data automatically once a
+  route exists.
+- `system.test.ts` (8) — a down service reads as down, never as online.
+- `primitives.test.tsx` (12) — label association, disabled handling, button type.
+- `DataSourceNotice.test.tsx` (5) — the preview banner always names the missing
+  endpoint.
+
+### Phase 1 is complete
+
+The one item that cannot be closed by the frontend team is swapping fixtures for
+live data — that needs the backend routes to exist. The *engineering* for it is
+done and verified: `withPreviewFallback` switches to live data with no code
+change, and `endpoints.test.ts` proves it. What remains is deleting
+`src/lib/fixtures.ts` once every route ships, which is tracked in Phase 2.
 
 ---
 
