@@ -11,6 +11,8 @@ app = FastAPI(
     description="Backend API service for AI Employee OS digital workforce platform",
     version="0.1.0",
 )
+from app.api.tasks import router as tasks_router
+app.include_router(tasks_router)
 
 # Enable CORS for Frontend communication
 app.add_middleware(
