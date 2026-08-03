@@ -7,7 +7,7 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
     name = Column(String, nullable=False)
     email = Column(String, index=True)
     phone = Column(String)

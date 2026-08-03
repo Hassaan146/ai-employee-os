@@ -11,7 +11,7 @@ class CustomerBase(BaseModel):
     status: Optional[str] = "active"
 
 class CustomerCreate(CustomerBase):
-    company_id: int  # tenant id, jab auth ready hoga tab yeh JWT token se aayega
+    company_id: str  # tenant id, jab auth ready hoga tab yeh JWT token se aayega
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -23,7 +23,7 @@ class CustomerUpdate(BaseModel):
 
 class CustomerResponse(CustomerBase):
     id: int
-    company_id: int
+    company_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
 

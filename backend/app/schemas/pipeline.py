@@ -9,7 +9,7 @@ class PipelineBase(BaseModel):
     notes: Optional[str] = None
 
 class PipelineCreate(PipelineBase):
-    company_id: int
+    company_id: Optional[str] = None
     lead_id: int
 
 class PipelineUpdate(BaseModel):
@@ -17,14 +17,14 @@ class PipelineUpdate(BaseModel):
     probability: Optional[float] = None
     expected_close_date: Optional[datetime] = None
     notes: Optional[str] = None
-    changed_by: Optional[int] = None
+    changed_by: Optional[str] = None
 
 class PipelineResponse(PipelineBase):
     id: int
-    company_id: int
+    company_id: str
     lead_id: int
     previous_stage: Optional[str] = None
-    changed_by: Optional[int] = None
+    changed_by: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
