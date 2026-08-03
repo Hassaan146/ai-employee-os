@@ -27,6 +27,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)
+app.include_router(activities.router)
 
 @app.get("/")
 def read_root():
