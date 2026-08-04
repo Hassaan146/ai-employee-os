@@ -10,6 +10,7 @@
  */
 
 import { ALLOW_PREVIEW_DATA } from "@/lib/config";
+import { getToken } from "@/lib/auth/session";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -28,11 +29,15 @@ const TIMEOUT_MS = 8000;
 
 export async function apiFetch<T>(
   url: string,
-  init?: RequestInit & { timeoutMs?: number },
+  init?: RequestInit & { timeoutMs?: number; /** Skip the Authorization header. */ anonymous?: boolean },
 ): Promise<T> {
-  const { timeoutMs = TIMEOUT_MS, ...rest } = init ?? {};
+  const { timeoutMs = TIMEOUT_MS, anonymous = false, ...rest } = init ?? {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Protected routes expect `Authorization: Bearer <jwt>` (see
+  // backend/app/core/deps.py). Login and register must not send it.
+  const token = anonymous ? null : getToken();
 
   try {
     const res = await fetch(url, {
@@ -40,6 +45,7 @@ export async function apiFetch<T>(
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(rest.headers ?? {}),
       },
       cache: "no-store",
