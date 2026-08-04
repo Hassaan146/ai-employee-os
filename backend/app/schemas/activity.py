@@ -1,5 +1,6 @@
 # app/schemas/activity.py
 
+import uuid
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -9,17 +10,17 @@ class ActivityBase(BaseModel):
     description: Optional[str] = None
 
 class ActivityCreate(ActivityBase):
-    company_id: int
-    lead_id: Optional[int] = None
-    customer_id: Optional[int] = None
-    performed_by: Optional[int] = None
+    """company_id defaults to the authenticated user's company; performed_by defaults to the user."""
+    lead_id: Optional[uuid.UUID] = None
+    customer_id: Optional[uuid.UUID] = None
+    performed_by: Optional[uuid.UUID] = None
 
 class ActivityResponse(ActivityBase):
-    id: int
-    company_id: int
-    lead_id: Optional[int] = None
-    customer_id: Optional[int] = None
-    performed_by: Optional[int] = None
+    id: uuid.UUID
+    company_id: uuid.UUID
+    lead_id: Optional[uuid.UUID] = None
+    customer_id: Optional[uuid.UUID] = None
+    performed_by: Optional[uuid.UUID] = None
     created_at: datetime
 
     class Config:

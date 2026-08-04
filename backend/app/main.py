@@ -4,8 +4,9 @@ from app.core.database import Base, engine
 from app import models
 from app.api import auth, customers, leads, pipeline, activities
 
-# Auto-create all database tables on startup
-# Base.metadata.create_all(bind=engine)
+# Auto-create all database tables on startup (dev convenience; for CI/prod
+# regenerate a fresh Alembic baseline migration from the models instead).
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Employee OS API",
@@ -14,6 +15,7 @@ app = FastAPI(
 )
 from app.api.tasks import router as tasks_router
 app.include_router(tasks_router)
+from app.api.quotations import router as quotations_router
 
 # Enable CORS for Frontend communication
 app.add_middleware(
@@ -30,6 +32,7 @@ app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)
 app.include_router(activities.router)
+app.include_router(quotations_router)
 
 @app.get("/")
 def read_root():

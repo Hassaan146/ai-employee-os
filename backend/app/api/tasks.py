@@ -5,14 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.user import User
 from app.schemas.task import TaskCreate, TaskUpdate, TaskRead, TaskListResponse
-
-# NOTE: once Member 1's auth dependency (get_current_user) is available,
-# import it here and add `current_user = Depends(get_current_user)` to every
-# route below, then use `current_user.company_id` instead of the temporary
-# `company_id` query param used for now to keep this testable in isolation.
-# from app.core.security import get_current_user
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["Tasks"])
 
@@ -20,11 +16,12 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["Tasks"])
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(
     task_in: TaskCreate,
-    company_id: uuid.UUID = Query(..., description="Temporary until auth wiring lands"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     task = Task(
-        company_id=company_id,
+        company_id=current_user.company_id,
+        created_by_id=current_user.id,
         title=task_in.title,
         description=task_in.description,
         priority=task_in.priority,
@@ -41,7 +38,7 @@ def create_task(
 
 @router.get("", response_model=TaskListResponse)
 def list_tasks(
-    company_id: uuid.UUID = Query(..., description="Temporary until auth wiring lands"),
+    current_user: User = Depends(get_current_user),
     status_filter: Optional[TaskStatus] = Query(None, alias="status"),
     priority_filter: Optional[TaskPriority] = Query(None, alias="priority"),
     assigned_to_id: Optional[uuid.UUID] = Query(None),
@@ -49,7 +46,7 @@ def list_tasks(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Task).filter(Task.company_id == company_id)
+    query = db.query(Task).filter(Task.company_id == current_user.company_id)
 
     if status_filter:
         query = query.filter(Task.status == status_filter)
@@ -72,12 +69,12 @@ def list_tasks(
 @router.get("/{task_id}", response_model=TaskRead)
 def get_task(
     task_id: uuid.UUID,
-    company_id: uuid.UUID = Query(..., description="Temporary until auth wiring lands"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == company_id)
+        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
         .first()
     )
     if not task:
@@ -89,12 +86,12 @@ def get_task(
 def update_task(
     task_id: uuid.UUID,
     task_in: TaskUpdate,
-    company_id: uuid.UUID = Query(..., description="Temporary until auth wiring lands"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == company_id)
+        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
         .first()
     )
     if not task:
@@ -112,12 +109,12 @@ def update_task(
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
     task_id: uuid.UUID,
-    company_id: uuid.UUID = Query(..., description="Temporary until auth wiring lands"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == company_id)
+        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
         .first()
     )
     if not task:

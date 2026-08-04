@@ -1,3 +1,4 @@
+import uuid
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
@@ -11,7 +12,7 @@ class CustomerBase(BaseModel):
     status: Optional[str] = "active"
 
 class CustomerCreate(CustomerBase):
-    company_id: str  # tenant id, jab auth ready hoga tab yeh JWT token se aayega
+    """company_id is taken from the authenticated user's JWT, not from the client."""
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -22,8 +23,8 @@ class CustomerUpdate(BaseModel):
     status: Optional[str] = None
 
 class CustomerResponse(CustomerBase):
-    id: int
-    company_id: str
+    id: uuid.UUID
+    company_id: uuid.UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
 

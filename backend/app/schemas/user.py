@@ -1,3 +1,4 @@
+import uuid
 from pydantic import BaseModel
 from typing import Optional
 
@@ -12,8 +13,8 @@ class UserLogin(BaseModel):
     password: str
 
 class UserResponse(BaseModel):
-    id: str
-    company_id: str
+    id: uuid.UUID
+    company_id: uuid.UUID
     email: str
     full_name: Optional[str] = None
     role: str = "employee"

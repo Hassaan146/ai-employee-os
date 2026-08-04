@@ -1,5 +1,7 @@
 #Authetication ( MIDDLEWARE )
 
+import uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -23,10 +25,11 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_id_raw = payload.get("sub")
+        if user_id_raw is None:
             raise credentials_exception
-    except JWTError:
+        user_id = uuid.UUID(str(user_id_raw))
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
 
     user = db.query(User).filter(User.id == user_id).first()

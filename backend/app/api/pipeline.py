@@ -1,17 +1,30 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.pipeline_rules import is_valid_transition
+from app.core.deps import get_current_user
+from app.core.pipeline_rules import is_valid_transition, VALID_STAGES
 from app.models.sales_pipeline import SalesPipeline
 from app.models.activity_timeline import ActivityTimeline
+from app.models.user import User
 from app.schemas.pipeline import PipelineCreate, PipelineUpdate, PipelineResponse
 
 router = APIRouter(prefix="/api/v1/crm/pipeline", tags=["Pipeline"])
 
 
 @router.post("/", response_model=PipelineResponse)
-def create_pipeline_entry(pipeline: PipelineCreate, db: Session = Depends(get_db)):
-    new_entry = SalesPipeline(**pipeline.model_dump())
+def create_pipeline_entry(
+    pipeline: PipelineCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if pipeline.stage not in VALID_STAGES:
+        raise HTTPException(status_code=400, detail=f"Invalid stage: '{pipeline.stage}'")
+
+    data = pipeline.model_dump()
+    data["company_id"] = current_user.company_id
+    new_entry = SalesPipeline(**data)
     db.add(new_entry)
     db.commit()
     db.refresh(new_entry)
@@ -19,24 +32,47 @@ def create_pipeline_entry(pipeline: PipelineCreate, db: Session = Depends(get_db
 
 
 @router.get("/", response_model=list[PipelineResponse])
-def get_pipeline_entries(skip: int = 0, limit: int = 20, stage: str | None = None, db: Session = Depends(get_db)):
-    query = db.query(SalesPipeline)
+def get_pipeline_entries(
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 20,
+    stage: str | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(SalesPipeline).filter(SalesPipeline.company_id == current_user.company_id)
     if stage:
         query = query.filter(SalesPipeline.stage == stage)
     return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{pipeline_id}", response_model=PipelineResponse)
-def get_pipeline_entry(pipeline_id: int, db: Session = Depends(get_db)):
-    entry = db.query(SalesPipeline).filter(SalesPipeline.id == pipeline_id).first()
+def get_pipeline_entry(
+    pipeline_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entry = (
+        db.query(SalesPipeline)
+        .filter(SalesPipeline.id == pipeline_id, SalesPipeline.company_id == current_user.company_id)
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Pipeline entry not found")
     return entry
 
 
 @router.put("/{pipeline_id}", response_model=PipelineResponse)
-def update_pipeline_entry(pipeline_id: int, updates: PipelineUpdate, db: Session = Depends(get_db)):
-    entry = db.query(SalesPipeline).filter(SalesPipeline.id == pipeline_id).first()
+def update_pipeline_entry(
+    pipeline_id: uuid.UUID,
+    updates: PipelineUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entry = (
+        db.query(SalesPipeline)
+        .filter(SalesPipeline.id == pipeline_id, SalesPipeline.company_id == current_user.company_id)
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Pipeline entry not found")
 
@@ -61,7 +97,7 @@ def update_pipeline_entry(pipeline_id: int, updates: PipelineUpdate, db: Session
             lead_id=entry.lead_id,
             activity_type="stage_change",
             description=f"Pipeline stage changed from '{entry.stage}' to '{new_stage}'",
-            performed_by=update_data.get("changed_by"),
+            performed_by=update_data.get("changed_by", current_user.id),
         )
         db.add(activity)
 
@@ -74,8 +110,16 @@ def update_pipeline_entry(pipeline_id: int, updates: PipelineUpdate, db: Session
 
 
 @router.delete("/{pipeline_id}")
-def delete_pipeline_entry(pipeline_id: int, db: Session = Depends(get_db)):
-    entry = db.query(SalesPipeline).filter(SalesPipeline.id == pipeline_id).first()
+def delete_pipeline_entry(
+    pipeline_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entry = (
+        db.query(SalesPipeline)
+        .filter(SalesPipeline.id == pipeline_id, SalesPipeline.company_id == current_user.company_id)
+        .first()
+    )
     if not entry:
         raise HTTPException(status_code=404, detail="Pipeline entry not found")
 
