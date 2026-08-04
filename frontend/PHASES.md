@@ -9,7 +9,11 @@ surface described in `EmployeeOS.md`.
 | Phase | Share | Theme | Gate |
 |-------|-------|-------|------|
 | Phase 1 | 30% | Foundation + UI for the backend that exists today | ✅ **Complete** |
-| Phase 2 | 70% | Full product surface | Blocked on backend endpoints |
+| Phase 2 | 70% | Full product surface | 🔄 **18 / 70 delivered** |
+
+**Phase 2 progress:** 2.1 Auth (8%) and 2.3 CRM (10%) are delivered and running
+on live endpoints, after `secondary` was merged into `frontend` and brought in
+JWT auth, CRM, and task routes. Total frontend completion: **48%**.
 
 ---
 
@@ -96,20 +100,27 @@ change, and `endpoints.test.ts` proves it. What remains is deleting
 
 Each block below is gated on the backend work named in **Requires**.
 
-### 2.1 Authentication & access control — 8%
-Login, registration, password reset, MFA, session handling, route guards, and
-role-based UI (`admin` / `manager` / `employee`).
-**Requires:** `POST /api/v1/auth/login`, `/register`, `/refresh`, `GET /users/me`.
+### 2.1 Authentication & access control — 8% ✅ **Delivered**
+Sign-in, sign-up, session restore, route guards, sign-out — live against
+`POST /api/v1/auth/{login,register}` and `GET /api/v1/auth/me`.
+
+Still open in this block (deferred, needs backend): password reset, MFA, token
+refresh, and role-gated UI beyond displaying the role. Also a hardening item —
+the token lives in `localStorage` because the backend returns it in the JSON
+body; moving to an httpOnly cookie requires a backend change.
 
 ### 2.2 Live agent chat — 10%
 Replace the preview reply with real streaming responses, conversation history,
 persisted memory, RAG source citations, file attachments, and voice input.
 **Requires:** `POST /chat` (streaming), conversation endpoints, RAG retrieval.
 
-### 2.3 CRM — 10%
-Customer and lead records, sales pipeline board, activity timeline, AI customer
-summaries, relationship insights.
-**Requires:** Customer / Lead / Activity models and CRUD routes.
+### 2.3 CRM — 10% ✅ **Delivered**
+Customers and leads with full CRUD, sales pipeline board with rule-checked stage
+moves, and per-lead activity history — all live against
+`/api/v1/crm/{customers,leads,pipeline,activities}`.
+
+Still open in this block (needs backend): AI customer summaries and
+relationship insights, which depend on the AI service.
 
 ### 2.4 Quotations & invoices — 12%
 Line-item builder with tax and discounts, company branding, approval workflow,
