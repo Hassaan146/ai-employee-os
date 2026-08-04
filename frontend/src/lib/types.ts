@@ -211,3 +211,143 @@ export interface ServiceHealth {
 export interface ProvidersResponse {
   providers: string[];
 }
+
+/* ------------------------------------------------------------------ */
+/* Auth — backend/app/api/auth.py + schemas/user.py, auth.py           */
+/* ------------------------------------------------------------------ */
+
+/** Subset of User returned by the auth endpoints (no hashed_password). */
+export interface AuthUser {
+  id: string;
+  company_id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+}
+
+/** Response of POST /auth/login and POST /auth/register. */
+export interface AuthToken {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  full_name?: string | null;
+  /** Optional; backend derives "<name>'s Business" when omitted. */
+  company_name?: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* CRM — backend/app/models/{customer,lead,sales_pipeline,activity}    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pipeline stages, mirroring VALID_STAGES in backend/app/core/pipeline_rules.py.
+ * Order matters — the board renders columns in this sequence.
+ */
+export const PIPELINE_STAGES = [
+  "new",
+  "contacted",
+  "qualified",
+  "proposal",
+  "negotiation",
+  "won",
+  "lost",
+] as const;
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
+
+/**
+ * Legal stage moves, mirroring ALLOWED_TRANSITIONS in pipeline_rules.py.
+ * The UI uses this to disable illegal moves up front instead of letting the
+ * user attempt one and collecting a 400.
+ */
+export const ALLOWED_STAGE_TRANSITIONS: Record<PipelineStage, PipelineStage[]> = {
+  new: ["contacted", "lost"],
+  contacted: ["qualified", "lost"],
+  qualified: ["proposal", "lost"],
+  proposal: ["negotiation", "lost"],
+  negotiation: ["won", "lost"],
+  won: [],
+  lost: [],
+};
+
+export function isValidStageTransition(
+  from: PipelineStage,
+  to: PipelineStage,
+): boolean {
+  if (from === to) return true;
+  return ALLOWED_STAGE_TRANSITIONS[from].includes(to);
+}
+
+/** Note: CRM ids are integers, unlike the UUID-string ids on core models. */
+export interface Customer {
+  id: number;
+  company_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company_name: string | null;
+  address: string | null;
+  status: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export type CustomerDraft = Pick<
+  Customer,
+  "name" | "email" | "phone" | "company_name" | "address" | "status"
+>;
+
+export interface Lead {
+  id: number;
+  company_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  stage: string | null;
+  value: number | null;
+  customer_id: number | null;
+  assigned_to: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export type LeadDraft = Pick<
+  Lead,
+  "name" | "email" | "phone" | "source" | "stage" | "value" | "assigned_to"
+>;
+
+export interface PipelineEntry {
+  id: number;
+  company_id: string;
+  lead_id: number;
+  stage: string | null;
+  previous_stage: string | null;
+  probability: number | null;
+  expected_close_date: string | null;
+  notes: string | null;
+  changed_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface Activity {
+  id: number;
+  company_id: number;
+  activity_type: string;
+  description: string | null;
+  lead_id: number | null;
+  customer_id: number | null;
+  performed_by: number | null;
+  created_at: string;
+}

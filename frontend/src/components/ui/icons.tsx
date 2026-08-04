@@ -116,6 +116,35 @@ export function IconChevronRight({ className }: IconProps) {
   );
 }
 
+export function IconTarget({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.2" />
+    </svg>
+  );
+}
+
+export function IconPipeline({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <rect x="3" y="4" width="4" height="16" rx="1.2" />
+      <rect x="10" y="4" width="4" height="11" rx="1.2" />
+      <rect x="17" y="4" width="4" height="7" rx="1.2" />
+    </svg>
+  );
+}
+
+export function IconLogout({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 17l-5-5 5-5M5 12h11" />
+    </svg>
+  );
+}
+
 export function IconLogo({ className }: IconProps) {
   return (
     <svg viewBox="0 0 32 32" className={className ?? "size-7"} aria-hidden="true">

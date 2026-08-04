@@ -7,8 +7,10 @@ import {
   IconChat,
   IconDashboard,
   IconLogo,
+  IconPipeline,
   IconPulse,
   IconRobot,
+  IconTarget,
   IconUsers,
 } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
@@ -34,6 +36,14 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { href: "/employees", label: "AI employees", icon: IconRobot, preview: true },
       { href: "/chat", label: "Assistant chat", icon: IconChat, preview: true },
+    ],
+  },
+  {
+    section: "CRM",
+    items: [
+      { href: "/crm/customers", label: "Customers", icon: IconUsers },
+      { href: "/crm/leads", label: "Leads", icon: IconTarget },
+      { href: "/crm/pipeline", label: "Sales pipeline", icon: IconPipeline },
     ],
   },
   {
@@ -111,10 +121,10 @@ export function Sidebar() {
       </div>
 
       <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-3">
-        <p className="text-[11px] font-medium text-ink">Phase 1 · 30%</p>
+        <p className="text-[11px] font-medium text-ink">Phase 2 in progress</p>
         <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-          UI covering the models and services built so far. Amber dots mark views
-          waiting on backend endpoints.
+          Auth and CRM run on live endpoints. Amber dots mark views still waiting
+          on backend routes.
         </p>
       </div>
     </nav>
