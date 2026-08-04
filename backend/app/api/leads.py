@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.pipeline_rules import VALID_STAGES
 from app.models.lead import Lead
+from app.models.customer import Customer
 from app.models.user import User
 from app.schemas.lead import LeadCreate, LeadUpdate, LeadResponse
 
@@ -21,8 +22,21 @@ def create_lead(
     if lead.stage not in VALID_STAGES:
         raise HTTPException(status_code=400, detail=f"Invalid stage: '{lead.stage}'")
 
+    if lead.customer_id:
+        try:
+            valid_cust_id = str(uuid.UUID(str(lead.customer_id)))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Customer not found in this company")
+            
+        customer = db.query(Customer).filter(
+            Customer.id == valid_cust_id,
+            Customer.company_id == str(current_user.company_id)
+        ).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found in this company")
+
     data = lead.model_dump()
-    data["company_id"] = current_user.company_id
+    data["company_id"] = str(current_user.company_id)
     new_lead = Lead(**data)
     db.add(new_lead)
     db.commit()
@@ -38,7 +52,7 @@ def get_leads(
     stage: str | None = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Lead).filter(Lead.company_id == current_user.company_id)
+    query = db.query(Lead).filter(Lead.company_id == str(current_user.company_id))
     if stage:
         query = query.filter(Lead.stage == stage)
     return query.offset(skip).limit(limit).all()
@@ -46,13 +60,18 @@ def get_leads(
 
 @router.get("/{lead_id}", response_model=LeadResponse)
 def get_lead(
-    lead_id: uuid.UUID,
+    lead_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_lead_id = str(uuid.UUID(str(lead_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
     lead = (
         db.query(Lead)
-        .filter(Lead.id == lead_id, Lead.company_id == current_user.company_id)
+        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
         .first()
     )
     if not lead:
@@ -62,14 +81,19 @@ def get_lead(
 
 @router.put("/{lead_id}", response_model=LeadResponse)
 def update_lead(
-    lead_id: uuid.UUID,
+    lead_id: str,
     updates: LeadUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_lead_id = str(uuid.UUID(str(lead_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
     lead = (
         db.query(Lead)
-        .filter(Lead.id == lead_id, Lead.company_id == current_user.company_id)
+        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
         .first()
     )
     if not lead:
@@ -88,13 +112,18 @@ def update_lead(
 
 @router.delete("/{lead_id}")
 def delete_lead(
-    lead_id: uuid.UUID,
+    lead_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_lead_id = str(uuid.UUID(str(lead_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
     lead = (
         db.query(Lead)
-        .filter(Lead.id == lead_id, Lead.company_id == current_user.company_id)
+        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
         .first()
     )
     if not lead:

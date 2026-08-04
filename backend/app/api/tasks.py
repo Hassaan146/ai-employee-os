@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.customer import Customer
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskUpdate, TaskRead, TaskListResponse
 
@@ -19,16 +20,29 @@ def create_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if task_in.customer_id:
+        try:
+            valid_cust_id = str(uuid.UUID(str(task_in.customer_id)))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Customer not found in your company")
+
+        customer = db.query(Customer).filter(
+            Customer.id == valid_cust_id,
+            Customer.company_id == str(current_user.company_id)
+        ).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found in your company")
+
     task = Task(
-        company_id=current_user.company_id,
-        created_by_id=current_user.id,
+        company_id=str(current_user.company_id),
+        created_by_id=str(current_user.id),
         title=task_in.title,
         description=task_in.description,
         priority=task_in.priority,
         status=task_in.status,
         due_date=task_in.due_date,
-        assigned_to_id=task_in.assigned_to_id,
-        customer_id=task_in.customer_id,
+        assigned_to_id=str(task_in.assigned_to_id) if task_in.assigned_to_id else None,
+        customer_id=str(task_in.customer_id) if task_in.customer_id else None,
     )
     db.add(task)
     db.commit()
@@ -41,12 +55,12 @@ def list_tasks(
     current_user: User = Depends(get_current_user),
     status_filter: Optional[TaskStatus] = Query(None, alias="status"),
     priority_filter: Optional[TaskPriority] = Query(None, alias="priority"),
-    assigned_to_id: Optional[uuid.UUID] = Query(None),
+    assigned_to_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Task).filter(Task.company_id == current_user.company_id)
+    query = db.query(Task).filter(Task.company_id == str(current_user.company_id))
 
     if status_filter:
         query = query.filter(Task.status == status_filter)
@@ -68,13 +82,18 @@ def list_tasks(
 
 @router.get("/{task_id}", response_model=TaskRead)
 def get_task(
-    task_id: uuid.UUID,
+    task_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_task_id = str(uuid.UUID(str(task_id)))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
+        .filter(Task.id == valid_task_id, Task.company_id == str(current_user.company_id))
         .first()
     )
     if not task:
@@ -84,14 +103,19 @@ def get_task(
 
 @router.patch("/{task_id}", response_model=TaskRead)
 def update_task(
-    task_id: uuid.UUID,
+    task_id: str,
     task_in: TaskUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_task_id = str(uuid.UUID(str(task_id)))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
+        .filter(Task.id == valid_task_id, Task.company_id == str(current_user.company_id))
         .first()
     )
     if not task:
@@ -108,13 +132,18 @@ def update_task(
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
-    task_id: uuid.UUID,
+    task_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_task_id = str(uuid.UUID(str(task_id)))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
     task = (
         db.query(Task)
-        .filter(Task.id == task_id, Task.company_id == current_user.company_id)
+        .filter(Task.id == valid_task_id, Task.company_id == str(current_user.company_id))
         .first()
     )
     if not task:

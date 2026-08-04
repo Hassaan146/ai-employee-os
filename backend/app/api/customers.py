@@ -18,7 +18,7 @@ def create_customer(
     db: Session = Depends(get_db),
 ):
     data = customer.model_dump()
-    data["company_id"] = current_user.company_id
+    data["company_id"] = str(current_user.company_id)
     new_customer = Customer(**data)
     db.add(new_customer)
     db.commit()
@@ -35,7 +35,7 @@ def get_customers(
 ):
     return (
         db.query(Customer)
-        .filter(Customer.company_id == current_user.company_id)
+        .filter(Customer.company_id == str(current_user.company_id))
         .offset(skip)
         .limit(limit)
         .all()
@@ -44,13 +44,18 @@ def get_customers(
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer(
-    customer_id: uuid.UUID,
+    customer_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_cust_id = str(uuid.UUID(str(customer_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
     customer = (
         db.query(Customer)
-        .filter(Customer.id == customer_id, Customer.company_id == current_user.company_id)
+        .filter(Customer.id == valid_cust_id, Customer.company_id == str(current_user.company_id))
         .first()
     )
     if not customer:
@@ -60,14 +65,19 @@ def get_customer(
 
 @router.put("/{customer_id}", response_model=CustomerResponse)
 def update_customer(
-    customer_id: uuid.UUID,
+    customer_id: str,
     updates: CustomerUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_cust_id = str(uuid.UUID(str(customer_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
     customer = (
         db.query(Customer)
-        .filter(Customer.id == customer_id, Customer.company_id == current_user.company_id)
+        .filter(Customer.id == valid_cust_id, Customer.company_id == str(current_user.company_id))
         .first()
     )
     if not customer:
@@ -83,13 +93,18 @@ def update_customer(
 
 @router.delete("/{customer_id}")
 def delete_customer(
-    customer_id: uuid.UUID,
+    customer_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        valid_cust_id = str(uuid.UUID(str(customer_id)))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
     customer = (
         db.query(Customer)
-        .filter(Customer.id == customer_id, Customer.company_id == current_user.company_id)
+        .filter(Customer.id == valid_cust_id, Customer.company_id == str(current_user.company_id))
         .first()
     )
     if not customer:
