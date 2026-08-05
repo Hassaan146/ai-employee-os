@@ -28,13 +28,13 @@ async def upload_document(
     # 1. Verify customer if provided
     if customer_id:
         try:
-            valid_cust_id = str(uuid.UUID(str(customer_id)))
+            valid_cust_id = uuid.UUID(str(customer_id))
         except ValueError:
             raise HTTPException(status_code=404, detail="Customer not found in your company")
 
         customer = db.query(Customer).filter(
             Customer.id == valid_cust_id,
-            Customer.company_id == str(current_user.company_id)
+            Customer.company_id == current_user.company_id
         ).first()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found in your company")
@@ -63,9 +63,9 @@ async def upload_document(
 
     # 4. Create Document Record
     new_doc = Document(
-        company_id=str(current_user.company_id),
-        uploaded_by_id=str(current_user.id),
-        customer_id=str(customer_id) if customer_id else None,
+        company_id=current_user.company_id,
+        uploaded_by_id=current_user.id,
+        customer_id=customer_id if customer_id else None,
         file_name=filename,
         file_url=f"/uploads/documents/{unique_filename}",
         file_size_bytes=file_size,
@@ -89,7 +89,7 @@ def list_documents(
     current_user: User = Depends(get_current_user)
 ):
     """Lists company documents."""
-    query = db.query(Document).filter(Document.company_id == str(current_user.company_id))
+    query = db.query(Document).filter(Document.company_id == current_user.company_id)
     if document_type:
         query = query.filter(Document.document_type == document_type)
     return query.order_by(Document.created_at.desc()).all()
@@ -102,7 +102,7 @@ def search_documents(
 ):
     """Searches extracted text across company knowledge base documents."""
     matching_docs = db.query(Document).filter(
-        Document.company_id == str(current_user.company_id),
+        Document.company_id == current_user.company_id,
         Document.is_searchable == True,
         Document.extracted_text.ilike(f"%{query}%")
     ).order_by(Document.created_at.desc()).all()
@@ -121,13 +121,13 @@ def get_document(
 ):
     """Gets details for a specific document."""
     try:
-        valid_doc_id = str(uuid.UUID(str(document_id)))
+        valid_doc_id = uuid.UUID(str(document_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Document not found")
 
     doc = db.query(Document).filter(
         Document.id == valid_doc_id,
-        Document.company_id == str(current_user.company_id)
+        Document.company_id == current_user.company_id
     ).first()
 
     if not doc:
@@ -142,13 +142,13 @@ def delete_document(
 ):
     """Deletes a document."""
     try:
-        valid_doc_id = str(uuid.UUID(str(document_id)))
+        valid_doc_id = uuid.UUID(str(document_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Document not found")
 
     doc = db.query(Document).filter(
         Document.id == valid_doc_id,
-        Document.company_id == str(current_user.company_id)
+        Document.company_id == current_user.company_id
     ).first()
 
     if not doc:

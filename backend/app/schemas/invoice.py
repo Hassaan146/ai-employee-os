@@ -9,7 +9,7 @@ class LineItemCreate(BaseModel):
     unit_price: float = 0.0
 
 class LineItemResponse(BaseModel):
-    id: Union[str, uuid.UUID]
+    id: uuid.UUID
     description: str
     quantity: float
     unit_price: float
@@ -23,7 +23,7 @@ class LineItemResponse(BaseModel):
         from_attributes = True
 
 class InvoiceCreate(BaseModel):
-    customer_id: Union[str, uuid.UUID]
+    customer_id: str  # validated & converted to UUID in the route (invalid -> 404)
     line_items: List[LineItemCreate]
     tax_percent: Optional[float] = 0.0
     discount_percent: Optional[float] = 0.0
@@ -36,9 +36,9 @@ class InvoiceStatusUpdate(BaseModel):
     amount_paid: Optional[float] = None
 
 class InvoiceResponse(BaseModel):
-    id: Union[str, uuid.UUID]
-    company_id: Union[str, uuid.UUID]
-    customer_id: Union[str, uuid.UUID]
+    id: uuid.UUID
+    company_id: uuid.UUID
+    customer_id: uuid.UUID
     invoice_number: str
     status: str
     subtotal: float

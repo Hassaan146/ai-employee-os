@@ -2,6 +2,7 @@ import uuid
 import enum
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, Text, Integer, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
 class DocumentType(str, enum.Enum):
@@ -20,10 +21,10 @@ class DocumentStatus(str, enum.Enum):
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    company_id = Column(String(36), nullable=False, index=True)
-    uploaded_by_id = Column(String(36), nullable=True)
-    customer_id = Column(String(36), nullable=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    uploaded_by_id = Column(UUID(as_uuid=True), nullable=True)
+    customer_id = Column(UUID(as_uuid=True), nullable=True)
 
     file_name = Column(String(255), nullable=False)
     file_url = Column(String(500), nullable=False)

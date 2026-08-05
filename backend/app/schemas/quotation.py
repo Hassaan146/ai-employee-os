@@ -17,7 +17,7 @@ class QuotationLineItemCreate(BaseModel):
 class QuotationLineItemRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: Union[str, uuid.UUID]
+    id: uuid.UUID
     description: str
     quantity: Decimal
     unit_price: Decimal
@@ -30,7 +30,7 @@ class QuotationLineItemRead(BaseModel):
 
 # --- quotation ------------------------------------------------------
 class QuotationCreate(BaseModel):
-    customer_id: Union[str, uuid.UUID]
+    customer_id: uuid.UUID
     quotation_number: str
     currency: str = "USD"
     tax_percent: Decimal = Decimal("0")
@@ -52,10 +52,10 @@ class QuotationUpdate(BaseModel):
 class QuotationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: Union[str, uuid.UUID]
-    company_id: Union[str, uuid.UUID]
-    customer_id: Union[str, uuid.UUID]
-    created_by_id: Optional[Union[str, uuid.UUID]] = None
+    id: uuid.UUID
+    company_id: uuid.UUID
+    customer_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID] = None
 
     quotation_number: str
     currency: str
@@ -70,8 +70,8 @@ class QuotationRead(BaseModel):
 
     valid_until: Optional[datetime] = None
     approved_at: Optional[datetime] = None
-    approved_by_id: Optional[Union[str, uuid.UUID]] = None
-    converted_invoice_id: Optional[Union[str, uuid.UUID]] = None
+    approved_by_id: Optional[uuid.UUID] = None
+    converted_invoice_id: Optional[uuid.UUID] = None
     notes: Optional[str] = None
     pdf_url: Optional[str] = None
 

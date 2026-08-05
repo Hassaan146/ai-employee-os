@@ -24,19 +24,19 @@ def create_lead(
 
     if lead.customer_id:
         try:
-            valid_cust_id = str(uuid.UUID(str(lead.customer_id)))
+            valid_cust_id = uuid.UUID(str(lead.customer_id))
         except ValueError:
             raise HTTPException(status_code=404, detail="Customer not found in this company")
             
         customer = db.query(Customer).filter(
             Customer.id == valid_cust_id,
-            Customer.company_id == str(current_user.company_id)
+            Customer.company_id == current_user.company_id
         ).first()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found in this company")
 
     data = lead.model_dump()
-    data["company_id"] = str(current_user.company_id)
+    data["company_id"] = current_user.company_id
     new_lead = Lead(**data)
     db.add(new_lead)
     db.commit()
@@ -52,7 +52,7 @@ def get_leads(
     stage: str | None = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Lead).filter(Lead.company_id == str(current_user.company_id))
+    query = db.query(Lead).filter(Lead.company_id == current_user.company_id)
     if stage:
         query = query.filter(Lead.stage == stage)
     return query.offset(skip).limit(limit).all()
@@ -65,13 +65,13 @@ def get_lead(
     db: Session = Depends(get_db),
 ):
     try:
-        valid_lead_id = str(uuid.UUID(str(lead_id)))
+        valid_lead_id = uuid.UUID(str(lead_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Lead not found")
 
     lead = (
         db.query(Lead)
-        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
+        .filter(Lead.id == valid_lead_id, Lead.company_id == current_user.company_id)
         .first()
     )
     if not lead:
@@ -87,13 +87,13 @@ def update_lead(
     db: Session = Depends(get_db),
 ):
     try:
-        valid_lead_id = str(uuid.UUID(str(lead_id)))
+        valid_lead_id = uuid.UUID(str(lead_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Lead not found")
 
     lead = (
         db.query(Lead)
-        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
+        .filter(Lead.id == valid_lead_id, Lead.company_id == current_user.company_id)
         .first()
     )
     if not lead:
@@ -117,13 +117,13 @@ def delete_lead(
     db: Session = Depends(get_db),
 ):
     try:
-        valid_lead_id = str(uuid.UUID(str(lead_id)))
+        valid_lead_id = uuid.UUID(str(lead_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Lead not found")
 
     lead = (
         db.query(Lead)
-        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
+        .filter(Lead.id == valid_lead_id, Lead.company_id == current_user.company_id)
         .first()
     )
     if not lead:

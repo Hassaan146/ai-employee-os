@@ -23,8 +23,8 @@ class CustomerUpdate(BaseModel):
     status: Optional[str] = None
 
 class CustomerResponse(CustomerBase):
-    id: Union[str, uuid.UUID]
-    company_id: Union[str, uuid.UUID]
+    id: uuid.UUID
+    company_id: uuid.UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
 

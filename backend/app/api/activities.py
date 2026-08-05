@@ -20,20 +20,20 @@ def create_activity(
     db: Session = Depends(get_db),
 ):
     data = activity.model_dump()
-    data["company_id"] = str(current_user.company_id)
+    data["company_id"] = current_user.company_id
     if data.get("performed_by") is None:
-        data["performed_by"] = str(current_user.id)
+        data["performed_by"] = current_user.id
 
     # Validate Customer if provided
     if data.get("customer_id"):
         try:
-            valid_cust_id = str(uuid.UUID(str(data["customer_id"])))
+            valid_cust_id = uuid.UUID(str(data["customer_id"]))
         except ValueError:
             raise HTTPException(status_code=404, detail="Customer not found in your company")
 
         customer = db.query(Customer).filter(
             Customer.id == valid_cust_id,
-            Customer.company_id == str(current_user.company_id)
+            Customer.company_id == current_user.company_id
         ).first()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found in your company")
@@ -41,13 +41,13 @@ def create_activity(
     # Validate Lead if provided
     if data.get("lead_id"):
         try:
-            valid_lead_id = str(uuid.UUID(str(data["lead_id"])))
+            valid_lead_id = uuid.UUID(str(data["lead_id"]))
         except ValueError:
             raise HTTPException(status_code=404, detail="Lead not found in your company")
 
         lead = db.query(Lead).filter(
             Lead.id == valid_lead_id,
-            Lead.company_id == str(current_user.company_id)
+            Lead.company_id == current_user.company_id
         ).first()
         if not lead:
             raise HTTPException(status_code=404, detail="Lead not found in your company")
@@ -66,13 +66,13 @@ def get_lead_activities(
     db: Session = Depends(get_db),
 ):
     try:
-        valid_lead_id = str(uuid.UUID(str(lead_id)))
+        valid_lead_id = uuid.UUID(str(lead_id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Lead not found")
 
     lead = (
         db.query(Lead)
-        .filter(Lead.id == valid_lead_id, Lead.company_id == str(current_user.company_id))
+        .filter(Lead.id == valid_lead_id, Lead.company_id == current_user.company_id)
         .first()
     )
     if not lead:
@@ -82,7 +82,7 @@ def get_lead_activities(
         db.query(ActivityTimeline)
         .filter(
             ActivityTimeline.lead_id == valid_lead_id,
-            ActivityTimeline.company_id == str(current_user.company_id),
+            ActivityTimeline.company_id == current_user.company_id,
         )
         .order_by(ActivityTimeline.created_at.desc())
         .all()
