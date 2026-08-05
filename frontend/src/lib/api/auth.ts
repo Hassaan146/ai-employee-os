@@ -20,10 +20,22 @@ import type {
 
 const AUTH = `${BACKEND_URL}/api/v1/auth`;
 
+/**
+ * Login takes form-encoded credentials, not JSON.
+ *
+ * The endpoint uses FastAPI's OAuth2PasswordRequestForm, so the body must be
+ * application/x-www-form-urlencoded and the email goes in the `username`
+ * field. Sending JSON here returns 422.
+ */
 export function login(payload: LoginPayload): Promise<AuthToken> {
+  const form = new URLSearchParams();
+  form.set("username", payload.email);
+  form.set("password", payload.password);
+
   return apiFetch<AuthToken>(`${AUTH}/login`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: form.toString(),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     anonymous: true,
   });
 }

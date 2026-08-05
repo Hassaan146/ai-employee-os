@@ -56,8 +56,8 @@ describe("CRM endpoint paths", () => {
     ["listPipeline", () => listPipeline(), `${BACKEND_URL}/api/v1/crm/pipeline/`],
     [
       "listLeadActivities",
-      () => listLeadActivities(7),
-      `${BACKEND_URL}/api/v1/crm/leads/7/activities`,
+      () => listLeadActivities('lead-uuid-7'),
+      `${BACKEND_URL}/api/v1/crm/leads/lead-uuid-7/activities`,
     ],
   ] as const)("%s calls %s", async (_name, call, expected) => {
     const spy = stubOk([]);
@@ -73,67 +73,64 @@ describe("CRM endpoint paths", () => {
     expect(spy.mock.calls[0][0].endsWith("/customers/")).toBe(true);
   });
 
-  it("createCustomer injects company_id from the session", async () => {
+  // Tenant isolation: the backend derives company_id from the bearer token.
+  // A client that sent one would be asserting a tenant it does not own, so
+  // these two tests pin its ABSENCE from the request body.
+  it("createCustomer does not send company_id", async () => {
     const spy = stubOk({});
-    await createCustomer(
-      {
-        name: "Acme",
-        email: null,
-        phone: null,
-        company_name: null,
-        address: null,
-        status: "active",
-      },
-      "company-uuid-1",
-    );
+    await createCustomer({
+      name: "Acme",
+      email: null,
+      phone: null,
+      company_name: null,
+      address: null,
+      status: "active",
+    });
 
     const [url, init] = spy.mock.calls[0];
     expect(url).toBe(`${BACKEND_URL}/api/v1/crm/customers/`);
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toMatchObject({
-      name: "Acme",
-      company_id: "company-uuid-1",
-    });
+
+    const body = JSON.parse(init.body);
+    expect(body).toMatchObject({ name: "Acme" });
+    expect(body).not.toHaveProperty("company_id");
   });
 
-  it("createLead injects company_id from the session", async () => {
+  it("createLead does not send company_id", async () => {
     const spy = stubOk({});
-    await createLead(
-      {
-        name: "Prospect",
-        email: null,
-        phone: null,
-        source: null,
-        stage: "new",
-        value: null,
-        assigned_to: null,
-      },
-      "company-uuid-2",
-    );
-
-    expect(JSON.parse(spy.mock.calls[0][1].body)).toMatchObject({
-      company_id: "company-uuid-2",
+    await createLead({
+      name: "Prospect",
+      email: null,
+      phone: null,
+      source: null,
+      stage: "new",
+      value: null,
+      assigned_to: null,
     });
+
+    const body = JSON.parse(spy.mock.calls[0][1].body);
+    expect(body).toMatchObject({ name: "Prospect" });
+    expect(body).not.toHaveProperty("company_id");
   });
 
   it("updateCustomer uses PUT, matching the backend route", async () => {
     const spy = stubOk({});
-    await updateCustomer(3, { name: "Renamed" });
+    await updateCustomer('cust-3', { name: "Renamed" });
 
     expect(spy.mock.calls[0][1].method).toBe("PUT");
-    expect(spy.mock.calls[0][0]).toBe(`${BACKEND_URL}/api/v1/crm/customers/3`);
+    expect(spy.mock.calls[0][0]).toBe(`${BACKEND_URL}/api/v1/crm/customers/cust-3`);
   });
 
   it("deleteCustomer uses DELETE", async () => {
     const spy = stubOk({});
-    await deleteCustomer(9);
+    await deleteCustomer('cust-9');
 
     expect(spy.mock.calls[0][1].method).toBe("DELETE");
   });
 
   it("updatePipelineEntry sends the target stage", async () => {
     const spy = stubOk({});
-    await updatePipelineEntry(4, { stage: "qualified" });
+    await updatePipelineEntry('pipe-4', { stage: "qualified" });
 
     expect(JSON.parse(spy.mock.calls[0][1].body)).toEqual({ stage: "qualified" });
   });
@@ -171,6 +168,22 @@ describe("Authorization header", () => {
     await call();
 
     expect(spy.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+
+  // The endpoint uses OAuth2PasswordRequestForm: form-encoded, and the email
+  // travels in `username`. Sending JSON here returns 422.
+  it("login posts form-encoded credentials with email as username", async () => {
+    const spy = stubOk({ access_token: "x", token_type: "bearer", user: {} });
+
+    await login({ email: "amara@northwind.test", password: "secret12345" });
+
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe(`${BACKEND_URL}/api/v1/auth/login`);
+    expect(init.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
+
+    const form = new URLSearchParams(init.body);
+    expect(form.get("username")).toBe("amara@northwind.test");
+    expect(form.get("password")).toBe("secret12345");
   });
 
   it("sends the token on getMe", async () => {

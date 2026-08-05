@@ -26,23 +26,24 @@ export function listCustomers(): Promise<Customer[]> {
   return apiFetch<Customer[]>(`${CRM}/customers/`);
 }
 
-export function getCustomer(id: number): Promise<Customer> {
+export function getCustomer(id: string): Promise<Customer> {
   return apiFetch<Customer>(`${CRM}/customers/${id}`);
 }
 
-/** `company_id` is required by CustomerCreate and comes from the session. */
-export function createCustomer(
-  draft: CustomerDraft,
-  companyId: string,
-): Promise<Customer> {
+/**
+ * `company_id` is NOT sent. The tenant-isolation work made the backend derive
+ * it from the bearer token, and CustomerCreate no longer accepts it — a client
+ * that supplies one would be asserting a tenant it has no right to choose.
+ */
+export function createCustomer(draft: CustomerDraft): Promise<Customer> {
   return apiFetch<Customer>(`${CRM}/customers/`, {
     method: "POST",
-    body: JSON.stringify({ ...draft, company_id: companyId }),
+    body: JSON.stringify(draft),
   });
 }
 
 export function updateCustomer(
-  id: number,
+  id: string,
   patch: Partial<CustomerDraft>,
 ): Promise<Customer> {
   return apiFetch<Customer>(`${CRM}/customers/${id}`, {
@@ -51,7 +52,7 @@ export function updateCustomer(
   });
 }
 
-export function deleteCustomer(id: number): Promise<void> {
+export function deleteCustomer(id: string): Promise<void> {
   return apiFetch<void>(`${CRM}/customers/${id}`, { method: "DELETE" });
 }
 
@@ -61,25 +62,26 @@ export function listLeads(): Promise<Lead[]> {
   return apiFetch<Lead[]>(`${CRM}/leads/`);
 }
 
-export function getLead(id: number): Promise<Lead> {
+export function getLead(id: string): Promise<Lead> {
   return apiFetch<Lead>(`${CRM}/leads/${id}`);
 }
 
-export function createLead(draft: LeadDraft, companyId: string): Promise<Lead> {
+/** Tenant comes from the token — see createCustomer. */
+export function createLead(draft: LeadDraft): Promise<Lead> {
   return apiFetch<Lead>(`${CRM}/leads/`, {
     method: "POST",
-    body: JSON.stringify({ ...draft, company_id: companyId }),
+    body: JSON.stringify(draft),
   });
 }
 
-export function updateLead(id: number, patch: Partial<LeadDraft>): Promise<Lead> {
+export function updateLead(id: string, patch: Partial<LeadDraft>): Promise<Lead> {
   return apiFetch<Lead>(`${CRM}/leads/${id}`, {
     method: "PUT",
     body: JSON.stringify(patch),
   });
 }
 
-export function deleteLead(id: number): Promise<void> {
+export function deleteLead(id: string): Promise<void> {
   return apiFetch<void>(`${CRM}/leads/${id}`, { method: "DELETE" });
 }
 
@@ -90,12 +92,11 @@ export function listPipeline(): Promise<PipelineEntry[]> {
 }
 
 export function createPipelineEntry(payload: {
-  lead_id: number;
+  lead_id: string;
   stage: string;
   probability?: number | null;
   expected_close_date?: string | null;
   notes?: string | null;
-  company_id: string;
 }): Promise<PipelineEntry> {
   return apiFetch<PipelineEntry>(`${CRM}/pipeline/`, {
     method: "POST",
@@ -111,7 +112,7 @@ export function createPipelineEntry(payload: {
  * not offered, but this can still fail if another user moved the record.
  */
 export function updatePipelineEntry(
-  id: number,
+  id: string,
   patch: {
     stage?: string;
     probability?: number | null;
@@ -125,22 +126,22 @@ export function updatePipelineEntry(
   });
 }
 
-export function deletePipelineEntry(id: number): Promise<void> {
+export function deletePipelineEntry(id: string): Promise<void> {
   return apiFetch<void>(`${CRM}/pipeline/${id}`, { method: "DELETE" });
 }
 
 /* ----------------------------- Activities ---------------------------- */
 
-export function listLeadActivities(leadId: number): Promise<Activity[]> {
+export function listLeadActivities(leadId: string): Promise<Activity[]> {
   return apiFetch<Activity[]>(`${CRM}/leads/${leadId}/activities`);
 }
 
 export function createActivity(payload: {
   activity_type: string;
   description?: string | null;
-  company_id: number;
-  lead_id?: number | null;
-  customer_id?: number | null;
+  company_id?: string;
+  lead_id?: string | null;
+  customer_id?: string | null;
 }): Promise<Activity> {
   return apiFetch<Activity>(`${CRM}/activities`, {
     method: "POST",

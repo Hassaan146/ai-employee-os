@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/primitives";
 import { IconPlus, IconRefresh } from "@/components/ui/icons";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   createLead,
   deleteLead,
@@ -57,6 +58,7 @@ export function LeadsView() {
   const [editing, setEditing] = useState<Lead | "new" | null>(null);
   const [timelineFor, setTimelineFor] = useState<Lead | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<Lead | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -100,7 +102,7 @@ export function LeadsView() {
           prev ? prev.map((l) => (l.id === updated.id ? updated : l)) : prev,
         );
       } else {
-        const created = await createLead(draft, user.company_id);
+        const created = await createLead(draft);
         setLeads((prev) => (prev ? [...prev, created] : [created]));
       }
       setEditing(null);
@@ -117,6 +119,7 @@ export function LeadsView() {
     try {
       await deleteLead(lead.id);
       setLeads((prev) => (prev ? prev.filter((l) => l.id !== lead.id) : prev));
+      setConfirming(null);
     } catch (err) {
       setError(err);
     } finally {
@@ -246,7 +249,7 @@ export function LeadsView() {
                         </Button>
                         <Button
                           variant="danger"
-                          onClick={() => void remove(l)}
+                          onClick={() => setConfirming(l)}
                           disabled={busy}
                         >
                           Delete
@@ -272,6 +275,16 @@ export function LeadsView() {
 
       {timelineFor ? (
         <ActivityTimeline lead={timelineFor} onClose={() => setTimelineFor(null)} />
+      ) : null}
+
+      {confirming ? (
+        <ConfirmDialog
+          title="Delete this lead?"
+          body={`"${confirming.name}" and its activity history will be permanently removed. This cannot be undone.`}
+          busy={busy}
+          onConfirm={() => void remove(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
       ) : null}
     </>
   );

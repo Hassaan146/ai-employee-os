@@ -47,7 +47,7 @@ export function PipelineView() {
   const [entries, setEntries] = useState<PipelineEntry[] | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [error, setError] = useState<unknown>(null);
-  const [movingId, setMovingId] = useState<number | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -66,7 +66,7 @@ export function PipelineView() {
   }, [load]);
 
   const leadName = useCallback(
-    (id: number) => leads.find((l) => l.id === id)?.name ?? `Lead #${id}`,
+    (id: string) => leads.find((l) => l.id === id)?.name ?? `Lead ${id.slice(0, 8)}`,
     [leads],
   );
 

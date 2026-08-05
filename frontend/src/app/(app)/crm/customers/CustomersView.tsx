@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/primitives";
 import { IconPlus, IconRefresh } from "@/components/ui/icons";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   createCustomer,
   deleteCustomer,
@@ -43,6 +44,7 @@ export function CustomersView() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Customer | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<Customer | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -83,7 +85,7 @@ export function CustomersView() {
           prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev,
         );
       } else {
-        const created = await createCustomer(draft, user.company_id);
+        const created = await createCustomer(draft);
         setCustomers((prev) => (prev ? [...prev, created] : [created]));
       }
       setEditing(null);
@@ -100,6 +102,7 @@ export function CustomersView() {
     try {
       await deleteCustomer(customer.id);
       setCustomers((prev) => (prev ? prev.filter((c) => c.id !== customer.id) : prev));
+      setConfirming(null);
     } catch (err) {
       setError(err);
     } finally {
@@ -226,7 +229,7 @@ export function CustomersView() {
                         </Button>
                         <Button
                           variant="danger"
-                          onClick={() => void remove(c)}
+                          onClick={() => setConfirming(c)}
                           disabled={busy}
                         >
                           Delete
@@ -247,6 +250,16 @@ export function CustomersView() {
           busy={busy}
           onCancel={() => setEditing(null)}
           onSave={save}
+        />
+      ) : null}
+
+      {confirming ? (
+        <ConfirmDialog
+          title="Delete this customer?"
+          body={`"${confirming.name}" will be permanently removed from the CRM. This cannot be undone.`}
+          busy={busy}
+          onConfirm={() => void remove(confirming)}
+          onCancel={() => setConfirming(null)}
         />
       ) : null}
     </>

@@ -288,9 +288,12 @@ export function isValidStageTransition(
   return ALLOWED_STAGE_TRANSITIONS[from].includes(to);
 }
 
-/** Note: CRM ids are integers, unlike the UUID-string ids on core models. */
+/**
+ * CRM ids are UUID strings. They were integers in the first CRM cut; the
+ * tenant-isolation work on `secondary` moved every table to UUID keys.
+ */
 export interface Customer {
-  id: number;
+  id: string;
   company_id: string;
   name: string;
   email: string | null;
@@ -308,7 +311,7 @@ export type CustomerDraft = Pick<
 >;
 
 export interface Lead {
-  id: number;
+  id: string;
   company_id: string;
   name: string;
   email: string | null;
@@ -316,7 +319,7 @@ export interface Lead {
   source: string | null;
   stage: string | null;
   value: number | null;
-  customer_id: number | null;
+  customer_id: string | null;
   assigned_to: string | null;
   created_at: string;
   updated_at: string | null;
@@ -328,9 +331,9 @@ export type LeadDraft = Pick<
 >;
 
 export interface PipelineEntry {
-  id: number;
+  id: string;
   company_id: string;
-  lead_id: number;
+  lead_id: string;
   stage: string | null;
   previous_stage: string | null;
   probability: number | null;
@@ -342,12 +345,266 @@ export interface PipelineEntry {
 }
 
 export interface Activity {
-  id: number;
-  company_id: number;
+  id: string;
+  company_id: string;
   activity_type: string;
   description: string | null;
-  lead_id: number | null;
-  customer_id: number | null;
-  performed_by: number | null;
+  lead_id: string | null;
+  customer_id: string | null;
+  performed_by: string | null;
   created_at: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tasks — backend/app/api/tasks.py, models/task.py                    */
+/* ------------------------------------------------------------------ */
+
+export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export const TASK_STATUSES = [
+  "todo",
+  "in_progress",
+  "blocked",
+  "done",
+  "cancelled",
+] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export interface Task {
+  id: string;
+  company_id: string;
+  title: string;
+  description: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  due_date: string | null;
+  assigned_to_id: string | null;
+  customer_id: string | null;
+  created_by_id: string | null;
+  completed_at: string | null;
+  reminder_sent: boolean;
+  /** True when an AI employee created the task rather than a person. */
+  is_ai_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskDraft = Pick<
+  Task,
+  "title" | "description" | "priority" | "status" | "due_date" | "customer_id"
+>;
+
+/** GET /tasks is paginated, unlike the CRM collections. */
+export interface TaskListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  items: Task[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Invoices — backend/app/api/invoices.py, models/invoice.py           */
+/* ------------------------------------------------------------------ */
+
+export const INVOICE_STATUSES = [
+  "draft",
+  "sent",
+  "paid",
+  "partially_paid",
+  "overdue",
+  "cancelled",
+] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+export interface LineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
+/** What the client sends; the backend computes line_total and all totals. */
+export interface LineItemDraft {
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface Invoice {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  invoice_number: string;
+  status: string;
+  subtotal: number;
+  tax_percent: number;
+  tax_amount: number;
+  discount_percent: number;
+  discount_amount: number;
+  total_amount: number;
+  amount_paid: number;
+  currency: string;
+  notes: string | null;
+  due_date: string | null;
+  issue_date: string;
+  created_at: string;
+  line_items?: LineItem[];
+}
+
+export interface InvoiceDraft {
+  customer_id: string;
+  line_items: LineItemDraft[];
+  tax_percent?: number | null;
+  discount_percent?: number | null;
+  currency?: string | null;
+  due_date?: string | null;
+  notes?: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Quotations — backend/app/api/quotations.py                          */
+/* ------------------------------------------------------------------ */
+
+export const QUOTATION_STATUSES = [
+  "draft",
+  "sent",
+  "approved",
+  "rejected",
+  "expired",
+  "converted",
+] as const;
+export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
+
+export interface Quotation {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  created_by_id: string | null;
+  quotation_number: string;
+  currency: string;
+  status: QuotationStatus;
+  subtotal: number;
+  tax_percent: number;
+  tax_amount: number;
+  discount_percent: number;
+  discount_amount: number;
+  total_amount: number;
+  valid_until: string | null;
+  approved_at: string | null;
+  approved_by_id: string | null;
+  /** Set once the quotation has been turned into an invoice. */
+  converted_invoice_id: string | null;
+  notes: string | null;
+  pdf_url: string | null;
+  created_at: string;
+  updated_at: string;
+  line_items?: LineItem[];
+}
+
+export interface QuotationDraft {
+  customer_id: string;
+  quotation_number: string;
+  currency?: string;
+  tax_percent?: number;
+  discount_percent?: number;
+  valid_until?: string | null;
+  notes?: string | null;
+  line_items?: LineItemDraft[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Documents — backend/app/api/documents.py, models/document.py        */
+/* ------------------------------------------------------------------ */
+
+export const DOCUMENT_TYPES = [
+  "contract",
+  "invoice_attachment",
+  "policy",
+  "id_proof",
+  "other",
+] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+export const DOCUMENT_STATUSES = [
+  "uploaded",
+  "processing",
+  "ocr_complete",
+  "failed",
+] as const;
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
+
+export interface StoredDocument {
+  id: string;
+  company_id: string;
+  uploaded_by_id: string | null;
+  customer_id: string | null;
+  file_name: string;
+  file_url: string;
+  file_size_bytes: number | null;
+  mime_type: string | null;
+  document_type: string;
+  status: string;
+  extracted_text: string | null;
+  ai_summary: string | null;
+  is_searchable: boolean;
+  created_at: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Meetings — backend/app/api/meetings.py, models/meeting.py           */
+/* ------------------------------------------------------------------ */
+
+export const MEETING_STATUSES = [
+  "scheduled",
+  "in_progress",
+  "completed",
+  "cancelled",
+] as const;
+export type MeetingStatus = (typeof MEETING_STATUSES)[number];
+
+export interface MeetingActionItem {
+  id: string;
+  meeting_id: string;
+  description: string;
+  assigned_to_id: string | null;
+  deadline: string | null;
+  is_completed: boolean;
+  /** Set when the action item has been promoted into a real Task. */
+  linked_task_id: string | null;
+}
+
+export interface MeetingSpeakerLog {
+  id: string;
+  meeting_id: string;
+  speaker_label: string;
+  start_time_seconds: number | null;
+  end_time_seconds: number | null;
+  text: string | null;
+}
+
+export interface Meeting {
+  id: string;
+  company_id: string;
+  customer_id: string | null;
+  organized_by_id: string | null;
+  title: string;
+  status: MeetingStatus;
+  scheduled_at: string | null;
+  duration_minutes: number | null;
+  transcript_text: string | null;
+  ai_summary: string | null;
+  recording_url: string | null;
+  created_at: string;
+  updated_at: string;
+  speakers?: MeetingSpeakerLog[];
+  action_items?: MeetingActionItem[];
+}
+
+export interface MeetingDraft {
+  title: string;
+  scheduled_at?: string | null;
+  duration_minutes?: number | null;
+  customer_id?: string | null;
 }
