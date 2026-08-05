@@ -21,6 +21,7 @@ export function ErrorNotice({
   return (
     <div
       role="alert"
+      aria-live="assertive"
       className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-danger/25 bg-danger/[0.06] px-4 py-3"
     >
       <Badge tone="danger">Request failed</Badge>

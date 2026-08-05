@@ -184,6 +184,7 @@ function LoginForm() {
               {error ? (
                 <div
                   role="alert"
+                  aria-live="assertive"
                   className="rounded-lg border border-danger/25 bg-danger/[0.06] px-3.5 py-2.5"
                 >
                   <p className="text-[11px] leading-relaxed text-danger">{error}</p>

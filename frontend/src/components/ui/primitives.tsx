@@ -4,7 +4,7 @@
  * dependency surface minimal while the project is still taking shape.
  */
 
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -142,15 +142,17 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
     "border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 focus-visible:outline-danger",
 };
 
-export function Button({
-  children,
-  variant = "secondary",
-  className,
-  type = "button",
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+/** forwardRef so dialogs can move focus to a specific button on open. */
+export const Button = forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }
+>(function Button(
+  { children, variant = "secondary", className, type = "button", ...rest },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       type={type}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs transition",
@@ -164,7 +166,7 @@ export function Button({
       {children}
     </button>
   );
-}
+});
 
 /* ------------------------- Field wrappers ------------------------- */
 

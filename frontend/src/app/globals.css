@@ -128,3 +128,38 @@ body::before {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Visually hidden but available to screen readers.
+ * Used for legends and labels that would be redundant on screen.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip link — hidden until focused, then pinned to the top-left. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 1000;
+  border-radius: 0.5rem;
+  background-color: var(--color-accent);
+  color: var(--color-accent-ink);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: top 150ms ease-out;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}

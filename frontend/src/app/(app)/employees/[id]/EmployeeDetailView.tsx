@@ -296,7 +296,9 @@ export function EmployeeDetailView({ id }: { id: string }) {
           title="Tool permissions"
           description="Which tools this AI employee may call. Maps to the permissions JSON column."
         />
-        <CardBody className="grid gap-3 sm:grid-cols-2">
+        <CardBody>
+          <fieldset className="grid gap-3 sm:grid-cols-2">
+            <legend className="sr-only">Tool permissions for this AI employee</legend>
           {TOOL_CATALOGUE.map((tool) => {
             const granted = draft.permissions[tool.key] === true;
             return (
@@ -343,6 +345,7 @@ export function EmployeeDetailView({ id }: { id: string }) {
               </label>
             );
           })}
+          </fieldset>
         </CardBody>
       </Card>
     </>
