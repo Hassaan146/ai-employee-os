@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
 from app import models
-from app.api import auth, customers, leads, pipeline, activities, invoices
+from app.api import auth, customers, leads, pipeline, activities, invoices, documents
 from app.api.tasks import router as tasks_router
 from app.api.quotations import router as quotations_router
 
@@ -27,6 +27,7 @@ app.add_middleware(
 # Register Routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(invoices.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)

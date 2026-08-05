@@ -1,12 +1,8 @@
 import uuid
 import enum
 from datetime import datetime
-
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Text, Integer, Boolean
-from sqlalchemy.dialects.postgresql import UUID
-
+from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, Text, Integer, Boolean
 from app.core.database import Base
-
 
 class DocumentType(str, enum.Enum):
     CONTRACT = "contract"
@@ -15,30 +11,27 @@ class DocumentType(str, enum.Enum):
     ID_PROOF = "id_proof"
     OTHER = "other"
 
-
 class DocumentStatus(str, enum.Enum):
     UPLOADED = "uploaded"
     PROCESSING = "processing"
     OCR_COMPLETE = "ocr_complete"
     FAILED = "failed"
 
-
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
-    uploaded_by_id = Column(UUID(as_uuid=True), nullable=True)  # references users.id (FK to be added once users model exists)
-    customer_id = Column(UUID(as_uuid=True), nullable=True)  # references customers.id (FK to be added once customers model exists)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    company_id = Column(String(36), nullable=False, index=True)
+    uploaded_by_id = Column(String(36), nullable=True)
+    customer_id = Column(String(36), nullable=True)
 
     file_name = Column(String(255), nullable=False)
     file_url = Column(String(500), nullable=False)
     file_size_bytes = Column(Integer, nullable=True)
     mime_type = Column(String(100), nullable=True)
 
-    document_type = Column(Enum(DocumentType), default=DocumentType.OTHER, nullable=False)
-    status = Column(Enum(DocumentStatus), default=DocumentStatus.UPLOADED, nullable=False)
+    document_type = Column(SQLEnum(DocumentType), default=DocumentType.OTHER, nullable=False)
+    status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.UPLOADED, nullable=False)
 
     # OCR / AI extracted content
     extracted_text = Column(Text, nullable=True)

@@ -1,10 +1,8 @@
-"""Pydantic schemas for the Quotation engine (Member 3, Day 3)."""
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
-
-from pydantic import BaseModel, ConfigDict
+from typing import Optional, Union, List
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 from app.models.quotation import QuotationStatus
 
@@ -19,42 +17,45 @@ class QuotationLineItemCreate(BaseModel):
 class QuotationLineItemRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: Union[str, uuid.UUID]
     description: str
     quantity: Decimal
     unit_price: Decimal
     line_total: Decimal
 
+    @field_serializer("id", mode="plain")
+    def serialize_uuid_fields(self, v):
+        return str(v) if v is not None else None
+
 
 # --- quotation ------------------------------------------------------
 class QuotationCreate(BaseModel):
-    customer_id: uuid.UUID
+    customer_id: Union[str, uuid.UUID]
     quotation_number: str
     currency: str = "USD"
     tax_percent: Decimal = Decimal("0")
     discount_percent: Decimal = Decimal("0")
     valid_until: Optional[datetime] = None
     notes: Optional[str] = None
-    line_items: list[QuotationLineItemCreate] = []
+    line_items: List[QuotationLineItemCreate] = []
 
 
 class QuotationUpdate(BaseModel):
-    """Editing is only honoured while the quotation is DRAFT or SENT."""
     currency: Optional[str] = None
     tax_percent: Optional[Decimal] = None
     discount_percent: Optional[Decimal] = None
     valid_until: Optional[datetime] = None
     notes: Optional[str] = None
-    line_items: Optional[list[QuotationLineItemCreate]] = None
+    line_items: Optional[List[QuotationLineItemCreate]] = None
 
 
 class QuotationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    company_id: uuid.UUID
-    customer_id: uuid.UUID
-    created_by_id: Optional[uuid.UUID] = None
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
+    customer_id: Union[str, uuid.UUID]
+    created_by_id: Optional[Union[str, uuid.UUID]] = None
 
     quotation_number: str
     currency: str
@@ -69,12 +70,16 @@ class QuotationRead(BaseModel):
 
     valid_until: Optional[datetime] = None
     approved_at: Optional[datetime] = None
-    approved_by_id: Optional[uuid.UUID] = None
-    converted_invoice_id: Optional[uuid.UUID] = None
+    approved_by_id: Optional[Union[str, uuid.UUID]] = None
+    converted_invoice_id: Optional[Union[str, uuid.UUID]] = None
     notes: Optional[str] = None
     pdf_url: Optional[str] = None
 
     created_at: datetime
     updated_at: datetime
 
-    line_items: list[QuotationLineItemRead] = []
+    line_items: List[QuotationLineItemRead] = []
+
+    @field_serializer("id", "company_id", "customer_id", "created_by_id", "approved_by_id", "converted_invoice_id", mode="plain")
+    def serialize_uuid_fields(self, v):
+        return str(v) if v is not None else None
