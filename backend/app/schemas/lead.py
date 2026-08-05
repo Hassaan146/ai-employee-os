@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional
+import uuid
+from pydantic import BaseModel, field_serializer
+from typing import Optional, Union
 from datetime import datetime
 
 class LeadBase(BaseModel):
@@ -11,9 +12,8 @@ class LeadBase(BaseModel):
     value: Optional[float] = 0.0
 
 class LeadCreate(LeadBase):
-    company_id: Optional[str] = None
-    customer_id: Optional[int] = None
-    assigned_to: Optional[str] = None
+    customer_id: Optional[uuid.UUID] = None
+    assigned_to: Optional[uuid.UUID] = None
 
 class LeadUpdate(BaseModel):
     name: Optional[str] = None
@@ -22,15 +22,19 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     stage: Optional[str] = None
     value: Optional[float] = None
-    assigned_to: Optional[str] = None
+    assigned_to: Optional[uuid.UUID] = None
 
 class LeadResponse(LeadBase):
-    id: int
-    company_id: str
-    customer_id: Optional[int] = None
-    assigned_to: Optional[str] = None
+    id: uuid.UUID
+    company_id: uuid.UUID
+    customer_id: Optional[uuid.UUID] = None
+    assigned_to: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    @field_serializer("id", "company_id", "customer_id", "assigned_to", mode="plain")
+    def serialize_uuid_fields(self, v):
+        return str(v) if v is not None else None
 
     class Config:
         from_attributes = True

@@ -1,13 +1,10 @@
 import uuid
 import enum
 from datetime import datetime
-
-from sqlalchemy import Column, String, Numeric, DateTime, ForeignKey, Enum, Text, Boolean
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
 from app.core.database import Base
-
 
 class InvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
@@ -17,38 +14,29 @@ class InvoiceStatus(str, enum.Enum):
     OVERDUE = "overdue"
     CANCELLED = "cancelled"
 
-
 class Invoice(Base):
     __tablename__ = "invoices"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    # Tenant isolation
-    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
-
-    # Relations (owned by other members' models)
-    customer_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # references customers.id (FK to be added once customers model exists)
-    created_by_id = Column(UUID(as_uuid=True), nullable=True)  # references users.id (FK to be added once users model exists)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    customer_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    created_by_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
     invoice_number = Column(String(50), unique=True, nullable=False, index=True)
-    status = Column(Enum(InvoiceStatus), default=InvoiceStatus.DRAFT, nullable=False)
+    status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT, nullable=False)
 
-    # Financials
-    subtotal = Column(Numeric(12, 2), nullable=False, default=0)
-    tax_percent = Column(Numeric(5, 2), nullable=False, default=0)
-    tax_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    discount_percent = Column(Numeric(5, 2), nullable=False, default=0)
-    discount_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    total_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    amount_paid = Column(Numeric(12, 2), nullable=False, default=0)
+    subtotal = Column(Float, nullable=False, default=0.0)
+    tax_percent = Column(Float, nullable=False, default=0.0)
+    tax_amount = Column(Float, nullable=False, default=0.0)
+    discount_percent = Column(Float, nullable=False, default=0.0)
+    discount_amount = Column(Float, nullable=False, default=0.0)
+    total_amount = Column(Float, nullable=False, default=0.0)
+    amount_paid = Column(Float, nullable=False, default=0.0)
 
     currency = Column(String(10), nullable=False, default="USD")
-
-    # Payment
     payment_link = Column(String(500), nullable=True)
     is_recurring = Column(Boolean, default=False, nullable=False)
 
-    # Dates
     issue_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     due_date = Column(DateTime, nullable=True)
     paid_at = Column(DateTime, nullable=True)
@@ -65,12 +53,12 @@ class Invoice(Base):
 class InvoiceLineItem(Base):
     __tablename__ = "invoice_line_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
 
     description = Column(String(500), nullable=False)
-    quantity = Column(Numeric(10, 2), nullable=False, default=1)
-    unit_price = Column(Numeric(12, 2), nullable=False, default=0)
-    line_total = Column(Numeric(12, 2), nullable=False, default=0)
+    quantity = Column(Float, nullable=False, default=1.0)
+    unit_price = Column(Float, nullable=False, default=0.0)
+    line_total = Column(Float, nullable=False, default=0.0)
 
     invoice = relationship("Invoice", back_populates="line_items")

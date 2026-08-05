@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Optional
-
-from pydantic import BaseModel, ConfigDict
+from typing import Optional, Union, List
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 from app.models.task import TaskPriority, TaskStatus
 
@@ -18,12 +17,10 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    """Schema for creating a new task."""
     pass
 
 
 class TaskUpdate(BaseModel):
-    """Schema for updating an existing task. All fields optional."""
     title: Optional[str] = None
     description: Optional[str] = None
     priority: Optional[TaskPriority] = None
@@ -34,7 +31,6 @@ class TaskUpdate(BaseModel):
 
 
 class TaskRead(TaskBase):
-    """Schema for returning a task in API responses."""
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -46,10 +42,13 @@ class TaskRead(TaskBase):
     created_at: datetime
     updated_at: datetime
 
+    @field_serializer("id", "company_id", "created_by_id", "assigned_to_id", "customer_id", mode="plain")
+    def serialize_uuid_fields(self, v):
+        return str(v) if v is not None else None
+
 
 class TaskListResponse(BaseModel):
-    """Paginated list response for tasks."""
     total: int
     page: int
     page_size: int
-    items: list[TaskRead]
+    items: List[TaskRead]

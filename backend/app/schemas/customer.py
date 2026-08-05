@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+import uuid
+from pydantic import BaseModel, EmailStr, field_serializer
+from typing import Optional, Union
 from datetime import datetime
 
 class CustomerBase(BaseModel):
@@ -11,7 +12,7 @@ class CustomerBase(BaseModel):
     status: Optional[str] = "active"
 
 class CustomerCreate(CustomerBase):
-    company_id: str  # tenant id, jab auth ready hoga tab yeh JWT token se aayega
+    pass
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
@@ -22,10 +23,14 @@ class CustomerUpdate(BaseModel):
     status: Optional[str] = None
 
 class CustomerResponse(CustomerBase):
-    id: int
-    company_id: str
+    id: uuid.UUID
+    company_id: uuid.UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    @field_serializer("id", "company_id", mode="plain")
+    def serialize_uuid_fields(self, v):
+        return str(v) if v is not None else None
 
     class Config:
         from_attributes = True

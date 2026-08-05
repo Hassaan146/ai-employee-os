@@ -36,11 +36,11 @@ def test_auth_flow():
     assert dup_response.status_code == 400
 
     print("\n--- 3. Testing User Login ---")
-    login_payload = {
-        "email": reg_payload["email"],
+    login_data_form = {
+        "username": reg_payload["email"],
         "password": reg_payload["password"]
     }
-    login_response = client.post("/api/v1/auth/login", json=login_payload)
+    login_response = client.post("/api/v1/auth/login", data=login_data_form)
     print("Login Status Code:", login_response.status_code)
     assert login_response.status_code == 200
     login_data = login_response.json()

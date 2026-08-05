@@ -12,6 +12,10 @@ env/
 *.log
 *.db
 
+# Uploads & Temp Files
+backend/uploads/
+uploads/
+
 # Node / Frontend
 node_modules/
 .next/

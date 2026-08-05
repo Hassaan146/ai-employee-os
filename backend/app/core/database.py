@@ -9,7 +9,7 @@ try:
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
     else:
         engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
-        # Verify connection instantly
+        
         with engine.connect() as conn:
             pass
 except Exception:
