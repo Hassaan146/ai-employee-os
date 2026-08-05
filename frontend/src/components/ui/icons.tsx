@@ -160,3 +160,47 @@ export function IconLogo({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconCheck({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M9 11l3 3 8-8" />
+      <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" />
+    </svg>
+  );
+}
+
+export function IconDoc({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h4" />
+    </svg>
+  );
+}
+
+export function IconReceipt({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3z" />
+      <path d="M9 8h6M9 12h6" />
+    </svg>
+  );
+}
+
+export function IconFolder({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </svg>
+  );
+}
+
+export function IconMic({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </svg>
+  );
+}

@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   IconBuilding,
   IconChat,
+  IconCheck,
+  IconDoc,
+  IconFolder,
+  IconMic,
+  IconReceipt,
   IconDashboard,
   IconLogo,
   IconPipeline,
@@ -44,6 +49,16 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { href: "/crm/customers", label: "Customers", icon: IconUsers },
       { href: "/crm/leads", label: "Leads", icon: IconTarget },
       { href: "/crm/pipeline", label: "Sales pipeline", icon: IconPipeline },
+    ],
+  },
+  {
+    section: "Operations",
+    items: [
+      { href: "/tasks", label: "Tasks", icon: IconCheck },
+      { href: "/quotations", label: "Quotations", icon: IconDoc },
+      { href: "/invoices", label: "Invoices", icon: IconReceipt },
+      { href: "/documents", label: "Documents", icon: IconFolder },
+      { href: "/meetings", label: "Meetings", icon: IconMic },
     ],
   },
   {
