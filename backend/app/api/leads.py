@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.pipeline_rules import VALID_STAGES, is_valid_transition
+from app.models.activity_timeline import ActivityTimeline
 from app.models.lead import Lead
 from app.models.user import User
 from app.schemas.lead import LeadCreate, LeadUpdate, LeadResponse
@@ -98,7 +100,25 @@ def update_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    for field, value in updates.model_dump(exclude_unset=True).items():
+    update_data = updates.model_dump(exclude_unset=True)
+
+    # Validate + log a stage change (auto-created activity, like the pipeline)
+    if "stage" in update_data and update_data["stage"] != lead.stage:
+        new_stage = update_data["stage"]
+        if new_stage not in VALID_STAGES or not is_valid_transition(lead.stage, new_stage):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid stage transition: '{lead.stage}' -> '{new_stage}'",
+            )
+        db.add(ActivityTimeline(
+            company_id=lead.company_id,
+            lead_id=lead.id,
+            activity_type="stage_change",
+            description=f"Lead stage changed from '{lead.stage}' to '{new_stage}'",
+            performed_by=current_user.id,
+        ))
+
+    for field, value in update_data.items():
         setattr(lead, field, value)
 
     db.commit()

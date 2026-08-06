@@ -1,15 +1,17 @@
 import uuid
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.company import Company
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceStatus
 from app.schemas.invoice import InvoiceCreate, InvoiceStatusUpdate, InvoiceResponse
+from app.services.pdf_generator import generate_invoice_pdf
 
 router = APIRouter(prefix="/invoices", tags=["AI Invoice Generator"])
 
@@ -153,3 +155,32 @@ def delete_invoice(
     db.delete(invoice)
     db.commit()
     return None
+
+
+@router.get("/{invoice_id}/pdf")
+def invoice_pdf(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate and return a branded PDF for an invoice owned by the caller's company."""
+    invoice = db.query(Invoice).filter(
+        Invoice.id == invoice_id,
+        Invoice.company_id == current_user.company_id
+    ).first()
+
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first() if invoice.customer_id else None
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+
+    pdf_bytes = generate_invoice_pdf(invoice, customer, company.name if company else "")
+    invoice.pdf_url = f"/api/v1/invoices/{invoice.id}/pdf"
+    db.commit()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="invoice-{invoice.invoice_number}.pdf"'},
+    )
