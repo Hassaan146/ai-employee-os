@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.celery_app import celery_app
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
 from app import models
