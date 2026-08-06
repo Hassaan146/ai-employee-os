@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from app.core.config import settings
 
 celery_app = Celery(
@@ -15,6 +16,16 @@ celery_app.conf.update(
     enable_utc=True,
     task_track_started=True,
     task_time_limit=30 * 60,
+    beat_schedule={
+        "process-due-date-reminders-daily": {
+            "task": "process_due_date_reminders_task",
+            "schedule": crontab(hour=0, minute=0),  # Runs daily at midnight
+        },
+        "generate-recurring-invoices-daily": {
+            "task": "generate_recurring_invoices_task",
+            "schedule": crontab(hour=1, minute=0),  # Runs daily at 1 AM
+        },
+    }
 )
 
 celery_app.autodiscover_tasks(['app.tasks'])

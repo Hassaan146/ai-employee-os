@@ -3,7 +3,6 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum as SQLEnum, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -21,11 +20,11 @@ class QuotationStatus(str, enum.Enum):
 class Quotation(Base):
     __tablename__ = "quotations"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
 
-    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    customer_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    created_by_id = Column(UUID(as_uuid=True), nullable=True)
+    company_id = Column(String(36), nullable=False, index=True)
+    customer_id = Column(String(36), nullable=False, index=True)
+    created_by_id = Column(String(36), nullable=True)
 
     quotation_number = Column(String(50), unique=True, nullable=False, index=True)
     status = Column(SQLEnum(QuotationStatus), default=QuotationStatus.DRAFT, nullable=False)
@@ -41,10 +40,10 @@ class Quotation(Base):
 
     valid_until = Column(DateTime, nullable=True)
     approved_at = Column(DateTime, nullable=True)
-    approved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    approved_by_id = Column(String(36), nullable=True)
 
     # If converted to an invoice
-    converted_invoice_id = Column(UUID(as_uuid=True), nullable=True)
+    converted_invoice_id = Column(String(36), nullable=True)
 
     notes = Column(Text, nullable=True)
     pdf_url = Column(String(500), nullable=True)
@@ -58,8 +57,8 @@ class Quotation(Base):
 class QuotationLineItem(Base):
     __tablename__ = "quotation_line_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    quotation_id = Column(UUID(as_uuid=True), ForeignKey("quotations.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    quotation_id = Column(String(36), ForeignKey("quotations.id", ondelete="CASCADE"), nullable=False, index=True)
 
     description = Column(String(500), nullable=False)
     quantity = Column(Float, nullable=False, default=1.0)

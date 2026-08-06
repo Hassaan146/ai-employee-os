@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.database import get_db, to_uuid
 from app.core.deps import get_current_user
 from app.models.company import Company
 from app.models.user import User
@@ -30,14 +30,16 @@ def create_invoice(
         raise HTTPException(status_code=400, detail="Invoice must contain at least one line item")
 
     # 0. Verify customer exists in user's company
-    try:
-        valid_customer_id = uuid.UUID(str(invoice_in.customer_id))
-    except ValueError:
+    cust_uuid = to_uuid(invoice_in.customer_id)
+    company_uuid = to_uuid(current_user.company_id)
+    user_uuid = to_uuid(current_user.id)
+
+    if not cust_uuid:
         raise HTTPException(status_code=404, detail="Customer not found in your company. Please create customer first.")
 
     customer = db.query(Customer).filter(
-        Customer.id == valid_customer_id,
-        Customer.company_id == current_user.company_id
+        Customer.id == cust_uuid,
+        Customer.company_id == company_uuid
     ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found in your company. Please create customer first.")
@@ -70,9 +72,9 @@ def create_invoice(
 
     # 3. Create Invoice Record
     new_invoice = Invoice(
-        company_id=current_user.company_id,
+        company_id=company_uuid,
         customer_id=customer.id,
-        created_by_id=current_user.id,
+        created_by_id=user_uuid,
         invoice_number=generate_invoice_number(db),
         status=InvoiceStatus.DRAFT,
         subtotal=subtotal,
@@ -98,29 +100,60 @@ def list_invoices(
     current_user: User = Depends(get_current_user)
 ):
     """Lists all invoices belonging to the authenticated user's company."""
+    company_uuid = to_uuid(current_user.company_id)
     invoices = db.query(Invoice).filter(
-        Invoice.company_id == current_user.company_id
+        Invoice.company_id == company_uuid
     ).order_by(Invoice.created_at.desc()).all()
     return invoices
 
+@router.post("/process-reminders")
+def process_reminders(
+    current_user: User = Depends(get_current_user)
+):
+    """Triggers background processing of overdue invoice payment reminders."""
+    from app.tasks import process_due_date_reminders_task
+    task = process_due_date_reminders_task.delay()
+    return {"message": "Overdue payment reminders processing initiated", "task_id": task.id}
+
+@router.post("/process-recurring")
+def process_recurring(
+    current_user: User = Depends(get_current_user)
+):
+    """Triggers background generation of recurring invoices."""
+    from app.tasks import generate_recurring_invoices_task
+    task = generate_recurring_invoices_task.delay()
+    return {"message": "Recurring invoices generation initiated", "task_id": task.id}
+
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
-def get_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == current_user.company_id).first()
+def get_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv_uuid = to_uuid(invoice_id)
+    company_uuid = to_uuid(current_user.company_id)
+
+    if not inv_uuid:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    invoice = db.query(Invoice).filter(Invoice.id == inv_uuid, Invoice.company_id == company_uuid).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice
 
 @router.patch("/{invoice_id}/status", response_model=InvoiceResponse)
 def update_invoice_status(
-    invoice_id: uuid.UUID,
+    invoice_id: str,
     update_in: InvoiceStatusUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Updates the status of an invoice (e.g. mark as sent, paid, or cancelled)."""
+    inv_uuid = to_uuid(invoice_id)
+    company_uuid = to_uuid(current_user.company_id)
+
+    if not inv_uuid:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
     invoice = db.query(Invoice).filter(
-        Invoice.id == invoice_id,
-        Invoice.company_id == current_user.company_id
+        Invoice.id == inv_uuid,
+        Invoice.company_id == company_uuid
     ).first()
     
     if not invoice:
@@ -139,14 +172,20 @@ def update_invoice_status(
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_invoice(
-    invoice_id: uuid.UUID,
+    invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Deletes an invoice."""
+    inv_uuid = to_uuid(invoice_id)
+    company_uuid = to_uuid(current_user.company_id)
+
+    if not inv_uuid:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
     invoice = db.query(Invoice).filter(
-        Invoice.id == invoice_id,
-        Invoice.company_id == current_user.company_id
+        Invoice.id == inv_uuid,
+        Invoice.company_id == company_uuid
     ).first()
     
     if not invoice:
@@ -156,24 +195,29 @@ def delete_invoice(
     db.commit()
     return None
 
-
 @router.get("/{invoice_id}/pdf")
 def invoice_pdf(
-    invoice_id: uuid.UUID,
+    invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Generate and return a branded PDF for an invoice owned by the caller's company."""
+    inv_uuid = to_uuid(invoice_id)
+    company_uuid = to_uuid(current_user.company_id)
+
+    if not inv_uuid:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
     invoice = db.query(Invoice).filter(
-        Invoice.id == invoice_id,
-        Invoice.company_id == current_user.company_id
+        Invoice.id == inv_uuid,
+        Invoice.company_id == company_uuid
     ).first()
 
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first() if invoice.customer_id else None
-    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    company = db.query(Company).filter(Company.id == company_uuid).first()
 
     pdf_bytes = generate_invoice_pdf(invoice, customer, company.name if company else "")
     invoice.pdf_url = f"/api/v1/invoices/{invoice.id}/pdf"
