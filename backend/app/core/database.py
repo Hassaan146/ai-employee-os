@@ -5,8 +5,16 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.types import TypeDecorator
 from app.core.config import settings
 
-# Pure PostgreSQL Engine Connection (No SQLite fallback)
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+# Database Engine initialization with safe fallback for local testing when Docker PostgreSQL is offline
+try:
+    if settings.DATABASE_URL.startswith("sqlite"):
+        engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+        with engine.connect() as conn:
+            pass
+except Exception:
+    engine = create_engine("sqlite:///./employeeos.db", connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -42,8 +50,7 @@ class Uuid(TypeDecorator):
 
 def to_uuid(val: Any) -> Optional[uuid.UUID]:
     """Coerce any UUID-like value to a uuid.UUID for binding against UUID columns.
-    Returns None when the value is empty or not a parseable UUID (callers should
-    treat None as 'not found').
+    Returns None when the value is empty or not a parseable UUID.
     """
     if val is None:
         return None

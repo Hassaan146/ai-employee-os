@@ -8,6 +8,7 @@ from app.api.tasks import router as tasks_router
 from app.api.quotations import router as quotations_router
 from app.api.meetings import router as meetings_router
 from app.api.reports import router as reports_router
+from app.api.email import router as email_router
 
 # Auto-create all database tables on startup
 Base.metadata.create_all(bind=engine)
@@ -31,6 +32,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(invoices.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
+app.include_router(email_router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)
