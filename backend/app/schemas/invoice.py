@@ -9,7 +9,7 @@ class LineItemCreate(BaseModel):
     unit_price: float = 0.0
 
 class LineItemResponse(BaseModel):
-    id: uuid.UUID
+    id: Union[str, uuid.UUID]
     description: str
     quantity: float
     unit_price: float
@@ -36,9 +36,9 @@ class InvoiceStatusUpdate(BaseModel):
     amount_paid: Optional[float] = None
 
 class InvoiceResponse(BaseModel):
-    id: uuid.UUID
-    company_id: uuid.UUID
-    customer_id: uuid.UUID
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
+    customer_id: Union[str, uuid.UUID]
     invoice_number: str
     status: str
     subtotal: float

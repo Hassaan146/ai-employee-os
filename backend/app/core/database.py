@@ -1,7 +1,8 @@
 import uuid
 from typing import Any, Optional
-from sqlalchemy import create_engine
+from sqlalchemy import String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.types import TypeDecorator
 from app.core.config import settings
 
 # Pure PostgreSQL Engine Connection (No SQLite fallback)
@@ -20,10 +21,35 @@ def get_db():
         db.close()
 
 
-def to_uuid(val: Any) -> Optional[str]:
-    """Universal ID string converter helper.
-    Returns clean 36-character UUID string representation.
+class Uuid(TypeDecorator):
+    """ID column type that is a union of `str` and `uuid.UUID`.
+
+    Stores IDs as CHAR(36). Accepts either a str or a uuid.UUID on bind
+    (both are coerced to their canonical string form), so routes can pass
+    either form without type errors across Postgres and SQLite.
+    """
+    impl = String(36)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        return value
+
+
+def to_uuid(val: Any) -> Optional[uuid.UUID]:
+    """Coerce any UUID-like value to a uuid.UUID for binding against UUID columns.
+    Returns None when the value is empty or not a parseable UUID (callers should
+    treat None as 'not found').
     """
     if val is None:
         return None
-    return str(val)
+    if isinstance(val, uuid.UUID):
+        return val
+    try:
+        return uuid.UUID(str(val))
+    except (ValueError, AttributeError, TypeError):
+        return None

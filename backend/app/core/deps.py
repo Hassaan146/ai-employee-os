@@ -38,7 +38,7 @@ def get_current_user(
         user_id_raw = payload.get("sub")
         if user_id_raw is None:
             raise credentials_exception
-        user_id = str(user_id_raw)
+        user_id = uuid.UUID(str(user_id_raw))
     except (JWTError, ValueError, TypeError):
         raise credentials_exception
 

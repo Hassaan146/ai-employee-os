@@ -13,8 +13,8 @@ class UserLogin(BaseModel):
     password: str
 
 class UserResponse(BaseModel):
-    id: uuid.UUID
-    company_id: uuid.UUID
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
     email: str
     full_name: Optional[str] = None
     role: str = "employee"

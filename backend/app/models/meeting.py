@@ -6,7 +6,7 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.database import Base, Uuid
 
 
 class MeetingStatus(str, enum.Enum):
@@ -19,11 +19,11 @@ class MeetingStatus(str, enum.Enum):
 class Meeting(Base):
     __tablename__ = "meetings"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
 
-    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
-    customer_id = Column(UUID(as_uuid=True), nullable=True)  # references customers.id (FK to be added once customers model exists)
-    organized_by_id = Column(UUID(as_uuid=True), nullable=True)  # references users.id (FK to be added once users model exists)
+    company_id = Column(Uuid, nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
+    customer_id = Column(Uuid, nullable=True)  # references customers.id (FK to be added once customers model exists)
+    organized_by_id = Column(Uuid, nullable=True)  # references users.id (FK to be added once users model exists)
 
     title = Column(String(255), nullable=False)
     status = Column(Enum(MeetingStatus), default=MeetingStatus.SCHEDULED, nullable=False)
@@ -47,8 +47,8 @@ class Meeting(Base):
 class MeetingSpeakerLog(Base):
     __tablename__ = "meeting_speaker_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    meeting_id = Column(UUID(as_uuid=True), ForeignKey("meetings.id"), nullable=False, index=True)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    meeting_id = Column(Uuid, ForeignKey("meetings.id"), nullable=False, index=True)
 
     speaker_label = Column(String(100), nullable=False)  # e.g. "Speaker 1" or identified name
     start_time_seconds = Column(Integer, nullable=True)
@@ -61,15 +61,15 @@ class MeetingSpeakerLog(Base):
 class MeetingActionItem(Base):
     __tablename__ = "meeting_action_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    meeting_id = Column(UUID(as_uuid=True), ForeignKey("meetings.id"), nullable=False, index=True)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    meeting_id = Column(Uuid, ForeignKey("meetings.id"), nullable=False, index=True)
 
     description = Column(Text, nullable=False)
-    assigned_to_id = Column(UUID(as_uuid=True), nullable=True)  # references users.id (FK to be added once users model exists)
+    assigned_to_id = Column(Uuid, nullable=True)  # references users.id (FK to be added once users model exists)
     deadline = Column(DateTime, nullable=True)
     is_completed = Column(Boolean, default=False, nullable=False)
 
     # Optional link if this action item was converted into a Task
-    linked_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
+    linked_task_id = Column(Uuid, ForeignKey("tasks.id"), nullable=True)
 
     meeting = relationship("Meeting", back_populates="action_items")

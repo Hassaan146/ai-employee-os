@@ -12,8 +12,8 @@ class LeadBase(BaseModel):
     value: Optional[float] = 0.0
 
 class LeadCreate(LeadBase):
-    customer_id: Optional[uuid.UUID] = None
-    assigned_to: Optional[uuid.UUID] = None
+    customer_id: Optional[Union[str, uuid.UUID]] = None
+    assigned_to: Optional[Union[str, uuid.UUID]] = None
 
 class LeadUpdate(BaseModel):
     name: Optional[str] = None
@@ -22,13 +22,13 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     stage: Optional[str] = None
     value: Optional[float] = None
-    assigned_to: Optional[uuid.UUID] = None
+    assigned_to: Optional[Union[str, uuid.UUID]] = None
 
 class LeadResponse(LeadBase):
-    id: uuid.UUID
-    company_id: uuid.UUID
-    customer_id: Optional[uuid.UUID] = None
-    assigned_to: Optional[uuid.UUID] = None
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
+    customer_id: Optional[Union[str, uuid.UUID]] = None
+    assigned_to: Optional[Union[str, uuid.UUID]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -1,7 +1,7 @@
 """Meeting Assistant schemas (Member 3, Day 4)."""
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Union, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -12,7 +12,7 @@ class MeetingCreate(BaseModel):
     title: str
     scheduled_at: Optional[datetime] = None
     duration_minutes: Optional[int] = None
-    customer_id: Optional[uuid.UUID] = None
+    customer_id: Optional[Union[str, uuid.UUID]] = None
 
 
 class MeetingUpdate(BaseModel):
@@ -35,13 +35,13 @@ class MeetingSpeakerLogCreate(BaseModel):
 class MeetingSpeakerLogRead(MeetingSpeakerLogCreate):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    meeting_id: uuid.UUID
+    id: Union[str, uuid.UUID]
+    meeting_id: Union[str, uuid.UUID]
 
 
 class MeetingActionItemCreate(BaseModel):
     description: str
-    assigned_to_id: Optional[uuid.UUID] = None
+    assigned_to_id: Optional[Union[str, uuid.UUID]] = None
     deadline: Optional[datetime] = None
 
 
@@ -53,19 +53,19 @@ class MeetingActionItemUpdate(BaseModel):
 class MeetingActionItemRead(MeetingActionItemCreate):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    meeting_id: uuid.UUID
+    id: Union[str, uuid.UUID]
+    meeting_id: Union[str, uuid.UUID]
     is_completed: bool = False
-    linked_task_id: Optional[uuid.UUID] = None
+    linked_task_id: Optional[Union[str, uuid.UUID]] = None
 
 
 class MeetingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    company_id: uuid.UUID
-    customer_id: Optional[uuid.UUID] = None
-    organized_by_id: Optional[uuid.UUID] = None
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
+    customer_id: Optional[Union[str, uuid.UUID]] = None
+    organized_by_id: Optional[Union[str, uuid.UUID]] = None
 
     title: str
     status: MeetingStatus

@@ -3,7 +3,7 @@ import enum
 from sqlalchemy import Column, String, Integer, DateTime, Enum as SQLEnum, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.core.database import Base, Uuid
 
 class PricingTier(str, enum.Enum):
     BASIC = "basic"
@@ -14,7 +14,7 @@ class Company(Base):
     __tablename__ = "companies"
 
     #fields
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String(255), nullable=False)
     pricing_tier = Column(SQLEnum(PricingTier), default=PricingTier.BASIC, nullable=False)
     

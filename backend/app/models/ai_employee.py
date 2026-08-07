@@ -3,7 +3,7 @@ import enum
 from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.core.database import Base, Uuid
 
 class AIRoleType(str, enum.Enum):
     EXECUTIVE = "executive"
@@ -18,8 +18,8 @@ class AIRoleType(str, enum.Enum):
 class AIEmployee(Base):
     __tablename__ = "ai_employees"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
+    company_id = Column(Uuid, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     role_type = Column(SQLEnum(AIRoleType), default=AIRoleType.EXECUTIVE, nullable=False)
     system_prompt = Column(Text, nullable=True)
