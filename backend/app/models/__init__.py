@@ -1,5 +1,6 @@
 from app.models.company import Company, PricingTier
 from app.models.user import User, UserRole
+from app.models.whatsapp_message import WhatsAppMessage
 from app.models.ai_employee import AIEmployee, AIRoleType
 from app.models.customer import Customer
 from app.models.lead import Lead
@@ -18,5 +19,5 @@ __all__ = [
     "Quotation", "QuotationLineItem", "QuotationStatus",
     "Task", "TaskPriority", "TaskStatus",
     "Meeting", "MeetingSpeakerLog", "MeetingActionItem", "MeetingStatus",
-    "Document", "DocumentType", "DocumentStatus",
+    "Document", "DocumentType", "DocumentStatus","WhatsAppMessage",
 ]
