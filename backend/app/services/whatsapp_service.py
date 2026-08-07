@@ -2,13 +2,11 @@
 
 from sqlalchemy.orm import Session
 from app.models.whatsapp_message import WhatsAppMessage
+from app.core.ws_manager import manager
+import asyncio
 
 
 def generate_auto_reply(message_body: str) -> str:
-    """
-    Simple rule-based auto-reply generator.
-    Real AI integration (OpenAI/Gemini) can be plugged in here later.
-    """
     text = message_body.lower().strip()
 
     if any(word in text for word in ["hi", "hello", "hey", "salam", "assalam"]):
@@ -33,7 +31,7 @@ def save_incoming_message(
     message_body: str,
     message_id: str = None,
 ) -> WhatsAppMessage:
-    """Save incoming WhatsApp message and generate auto-reply."""
+    """Save incoming WhatsApp message, generate auto-reply, and push real-time alert."""
 
     reply_text = generate_auto_reply(message_body)
 
@@ -50,5 +48,22 @@ def save_incoming_message(
     db.commit()
     db.refresh(new_message)
 
+    # Push real-time alert via WebSocket (fire and forget)
+    try:
+        asyncio.create_task(
+            manager.send_to_company(
+                str(company_id),
+                {
+                    "type": "whatsapp_message",
+                    "from_number": new_message.from_number,
+                    "message_body": new_message.message_body,
+                    "reply_text": new_message.reply_text,
+                    "created_at": str(new_message.created_at),
+                },
+            )
+        )
+    except RuntimeError:
+        # No running event loop (e.g. sync test context) — skip WS push safely
+        pass
+
     return new_message
-  
