@@ -2,16 +2,15 @@
 
 import uuid
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from app.core.database import Base
+from app.core.database import Base, Uuid
 
 
 class WhatsAppMessage(Base):
     __tablename__ = "whatsapp_messages"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
+    company_id = Column(Uuid, ForeignKey("companies.id"), nullable=False)
 
     from_number = Column(String, nullable=False, index=True)
     message_body = Column(Text, nullable=False)
