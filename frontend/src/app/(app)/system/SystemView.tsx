@@ -24,7 +24,8 @@ import {
   cn,
 } from "@/components/ui/primitives";
 import { IconRefresh } from "@/components/ui/icons";
-import { checkAllServices, fetchProviders } from "@/lib/api/system";
+import { AiToolTester } from "@/components/AiToolTester";
+import { checkAllServices, fetchBackendInfo, fetchProviders } from "@/lib/api/system";
 import { AI_URL, BACKEND_URL } from "@/lib/config";
 import type { ServiceHealth } from "@/lib/types";
 
@@ -36,31 +37,53 @@ const ENDPOINT_MATRIX: {
   status: "live" | "pending";
   usedBy: string;
 }[] = [
-  { method: "GET", path: "/", service: "Backend", status: "live", usedBy: "Service probe" },
   { method: "GET", path: "/health", service: "Backend", status: "live", usedBy: "System status, top bar" },
   { method: "GET", path: "/api/health", service: "AI", status: "live", usedBy: "System status, top bar" },
   { method: "GET", path: "/api/providers", service: "AI", status: "live", usedBy: "System status" },
+  { method: "POST", path: "/api/v1/auth/{login,register}", service: "Backend", status: "live", usedBy: "Sign in / sign up" },
+  { method: "GET", path: "/api/v1/auth/me", service: "Backend", status: "live", usedBy: "Session restore" },
+  { method: "ALL", path: "/api/v1/crm/customers", service: "Backend", status: "live", usedBy: "Customers" },
+  { method: "ALL", path: "/api/v1/crm/leads", service: "Backend", status: "live", usedBy: "Leads" },
+  { method: "ALL", path: "/api/v1/crm/pipeline", service: "Backend", status: "live", usedBy: "Sales pipeline" },
+  { method: "ALL", path: "/api/v1/crm/activities", service: "Backend", status: "live", usedBy: "Lead activity history" },
+  { method: "ALL", path: "/api/v1/tasks", service: "Backend", status: "live", usedBy: "Tasks board" },
+  { method: "ALL", path: "/api/v1/invoices", service: "Backend", status: "live", usedBy: "Invoices" },
+  { method: "GET", path: "/api/v1/invoices/{id}/pdf", service: "Backend", status: "live", usedBy: "Invoice PDF" },
+  { method: "POST", path: "/api/v1/invoices/process-{recurring,reminders}", service: "Backend", status: "live", usedBy: "Invoice batch jobs" },
+  { method: "ALL", path: "/api/v1/quotations", service: "Backend", status: "live", usedBy: "Quotations + approval flow" },
+  { method: "GET", path: "/api/v1/quotations/{id}/pdf", service: "Backend", status: "live", usedBy: "Quotation PDF" },
+  { method: "ALL", path: "/api/v1/documents", service: "Backend", status: "live", usedBy: "Documents" },
+  { method: "POST", path: "/api/v1/documents/{id}/parse", service: "Backend", status: "live", usedBy: "Document OCR" },
+  { method: "ALL", path: "/api/v1/meetings", service: "Backend", status: "live", usedBy: "Meetings + action items" },
+  { method: "POST", path: "/api/v1/email/send*", service: "Backend", status: "live", usedBy: "Email invoice / quotation" },
+  { method: "GET", path: "/api/v1/reports/{sales,revenue,productivity}", service: "Backend", status: "live", usedBy: "Reports" },
+  { method: "GET", path: "/api/v1/reports/expense", service: "Backend", status: "pending", usedBy: "Reports (needs Expense model)" },
+  { method: "GET", path: "/api/v1/audit-logs", service: "Backend", status: "live", usedBy: "Audit logs" },
+  { method: "GET", path: "/api/v1/whatsapp/messages", service: "Backend", status: "live", usedBy: "WhatsApp inbox" },
+  { method: "POST", path: "/api/v1/ai-tools-test/{tool}", service: "Backend", status: "live", usedBy: "AI tool tester (internal)" },
   { method: "POST", path: "/chat", service: "AI", status: "pending", usedBy: "Assistant chat" },
-  { method: "GET", path: "/api/v1/ai-employees", service: "Backend", status: "pending", usedBy: "AI employees list" },
-  { method: "POST", path: "/api/v1/ai-employees", service: "Backend", status: "pending", usedBy: "Create AI employee" },
-  { method: "GET", path: "/api/v1/ai-employees/{id}", service: "Backend", status: "pending", usedBy: "AI employee detail" },
-  { method: "PATCH", path: "/api/v1/ai-employees/{id}", service: "Backend", status: "pending", usedBy: "Edit AI employee" },
-  { method: "GET", path: "/api/v1/users", service: "Backend", status: "pending", usedBy: "Team page" },
+  { method: "GET", path: "/api/v1/ai-employees", service: "Backend", status: "pending", usedBy: "AI employees" },
+  { method: "GET", path: "/api/v1/users", service: "Backend", status: "pending", usedBy: "Team" },
   { method: "GET", path: "/api/v1/companies/me", service: "Backend", status: "pending", usedBy: "Company & plan" },
-  { method: "POST", path: "/api/v1/auth/login", service: "Backend", status: "pending", usedBy: "Sign in" },
 ];
 
 export function SystemView() {
   const [services, setServices] = useState<ServiceHealth[] | null>(null);
   const [providers, setProviders] = useState<string[] | null | "loading">("loading");
+  const [backendInfo, setBackendInfo] = useState<Record<string, unknown> | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     setBusy(true);
-    const [svc, prov] = await Promise.all([checkAllServices(), fetchProviders()]);
+    const [svc, prov, info] = await Promise.all([
+      checkAllServices(),
+      fetchProviders(),
+      fetchBackendInfo(),
+    ]);
     setServices(svc);
     setProviders(prov);
+    setBackendInfo(info);
     setCheckedAt(new Date().toLocaleTimeString());
     setBusy(false);
   }, []);
@@ -85,7 +108,12 @@ export function SystemView() {
       />
 
       {checkedAt ? (
-        <p className="-mt-2 text-[11px] text-ink-faint">Last checked at {checkedAt}</p>
+        <p className="-mt-2 text-[11px] text-ink-faint">
+          Last checked at {checkedAt}
+          {backendInfo
+            ? ` · ${String(backendInfo.system ?? "backend")} v${String(backendInfo.version ?? "?")}`
+            : ""}
+        </p>
       ) : null}
 
       {/* ------------------------- Service cards ------------------------- */}
@@ -189,7 +217,7 @@ export function SystemView() {
           description="What this frontend calls, and which of those endpoints the backend has shipped."
           action={
             <Badge tone="info">
-              {liveCount}/{ENDPOINT_MATRIX.length} live
+              {liveCount}/{ENDPOINT_MATRIX.length} groups live
             </Badge>
           }
         />
@@ -244,6 +272,8 @@ export function SystemView() {
           </p>
         </CardBody>
       </Card>
+
+      <AiToolTester />
     </>
   );
 }

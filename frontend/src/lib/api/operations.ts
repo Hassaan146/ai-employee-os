@@ -370,3 +370,36 @@ export function parseDocument(documentId: string): Promise<unknown> {
     timeoutMs: 60_000,
   });
 }
+
+/* ---------------------------- AI tools (test) -------------------------- */
+
+/**
+ * Tool names in the backend registries (ai_tools_crm.py, ai_tools_finance.py).
+ */
+export const AI_TOOL_NAMES = [
+  "create_customer",
+  "update_lead",
+  "create_task",
+  "generate_quotation",
+  "create_invoice",
+  "send_email",
+] as const;
+
+/**
+ * Run one AI tool directly.
+ *
+ * The backend marks this endpoint as TEMPORARY — it exists so the tools can be
+ * exercised until the central AI execution router lands, at which point they
+ * move there. It is surfaced only as an internal tester, not as product UI,
+ * so the eventual removal costs one panel rather than a feature.
+ */
+export function runAiTool(
+  toolName: string,
+  params: Record<string, unknown>,
+): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/ai-tools-test/${toolName}`, {
+    method: "POST",
+    body: JSON.stringify(params),
+    timeoutMs: 30_000,
+  });
+}

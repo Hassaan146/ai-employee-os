@@ -54,6 +54,20 @@ export function checkAllServices(): Promise<ServiceHealth[]> {
   return Promise.all([checkBackend(), checkAiService()]);
 }
 
+/**
+ * Backend root banner (GET /). Reports the service name and version, which
+ * /health does not carry. Returns null when the service is unreachable.
+ */
+export async function fetchBackendInfo(): Promise<Record<string, unknown> | null> {
+  try {
+    return await apiFetch<Record<string, unknown>>(`${BACKEND_URL}/`, {
+      timeoutMs: 5000,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** Configured LLM providers. Returns null when the AI service is unreachable. */
 export async function fetchProviders(): Promise<string[] | null> {
   try {
