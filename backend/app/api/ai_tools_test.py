@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.models.audit_log import AuditActorType, AuditStatus
+from app.services.audit_logger import log_audit
 from app.services.ai_tools_crm import CRM_TOOL_REGISTRY
 from app.services.ai_tools_finance import FINANCE_TOOL_REGISTRY
 
@@ -31,10 +33,40 @@ def run_tool(
 ):
     tool_fn = ALL_TOOL_REGISTRY.get(tool_name)
     if not tool_fn:
+        log_audit(
+            db=db,
+            company_id=current_user.company_id,
+            action="execute_tool",
+            resource_type="ai_tool",
+            resource_id=tool_name,
+            actor_type=AuditActorType.AI,
+            actor_name=tool_name,
+            details={"requested_by": str(current_user.id), "requested_by_email": current_user.email, "error": "unknown tool"},
+            status=AuditStatus.FAILURE,
+        )
         return {"success": False, "error": f"Unknown tool: {tool_name}"}
 
     if tool_name in NEEDS_USER_ID:
-        return tool_fn(params, db, str(current_user.company_id), str(current_user.id))
+        result = tool_fn(params, db, str(current_user.company_id), str(current_user.id))
+    else:
+        result = tool_fn(params, db, str(current_user.company_id))
 
-    return tool_fn(params, db, str(current_user.company_id))
+    log_audit(
+        db=db,
+        company_id=current_user.company_id,
+        action="execute_tool",
+        resource_type="ai_tool",
+        resource_id=result.get("result", {}).get("id") if result.get("success") else None,
+        actor_type=AuditActorType.AI,
+        actor_name=tool_name,
+        details={
+            "requested_by": str(current_user.id),
+            "requested_by_email": current_user.email,
+            "params": params,
+            "result": result.get("result"),
+        },
+        status=AuditStatus.SUCCESS if result.get("success") else AuditStatus.FAILURE,
+    )
+
+    return result
   

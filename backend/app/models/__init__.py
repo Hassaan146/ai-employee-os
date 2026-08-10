@@ -11,6 +11,7 @@ from app.models.quotation import Quotation, QuotationLineItem, QuotationStatus
 from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.meeting import Meeting, MeetingSpeakerLog, MeetingActionItem, MeetingStatus
 from app.models.document import Document, DocumentType, DocumentStatus
+from app.models.audit_log import AuditLog, AuditActorType, AuditStatus
 
 __all__ = [
     "Company", "PricingTier", "User", "UserRole", "AIEmployee", "AIRoleType",
@@ -20,4 +21,5 @@ __all__ = [
     "Task", "TaskPriority", "TaskStatus",
     "Meeting", "MeetingSpeakerLog", "MeetingActionItem", "MeetingStatus",
     "Document", "DocumentType", "DocumentStatus","WhatsAppMessage",
+    "AuditLog", "AuditActorType", "AuditStatus",
 ]
