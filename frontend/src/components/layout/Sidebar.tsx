@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconBuilding,
+  IconChart,
   IconChat,
+  IconShield,
   IconCheck,
   IconDoc,
   IconFolder,
@@ -59,6 +61,14 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { href: "/invoices", label: "Invoices", icon: IconReceipt },
       { href: "/documents", label: "Documents", icon: IconFolder },
       { href: "/meetings", label: "Meetings", icon: IconMic },
+    ],
+  },
+  {
+    section: "Insights",
+    items: [
+      { href: "/reports", label: "Reports", icon: IconChart },
+      { href: "/whatsapp", label: "WhatsApp", icon: IconChat },
+      { href: "/audit-logs", label: "Audit logs", icon: IconShield },
     ],
   },
   {
@@ -136,10 +146,10 @@ export function Sidebar() {
       </div>
 
       <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-3">
-        <p className="text-[11px] font-medium text-ink">Phase 2 in progress</p>
+        <p className="text-[11px] font-medium text-ink">Phase 2</p>
         <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-          Auth and CRM run on live endpoints. Amber dots mark views still waiting
-          on backend routes.
+          Every backend endpoint has a screen. Amber dots mark the few views
+          still waiting on routes that do not exist yet.
         </p>
       </div>
     </nav>

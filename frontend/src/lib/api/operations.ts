@@ -13,10 +13,16 @@ import { apiFetch } from "@/lib/api/client";
 import { getToken } from "@/lib/auth/session";
 import { BACKEND_URL } from "@/lib/config";
 import type {
+  AuditLog,
+  AuditStats,
+  EmailSendRequest,
   Invoice,
   InvoiceDraft,
   Meeting,
   MeetingActionItem,
+  ProductivityReport,
+  RevenueReport,
+  SalesReport,
   MeetingDraft,
   MeetingSpeakerLog,
   Quotation,
@@ -25,6 +31,7 @@ import type {
   Task,
   TaskDraft,
   TaskListResponse,
+  WhatsAppMessage,
 } from "@/lib/types";
 
 const V1 = `${BACKEND_URL}/api/v1`;
@@ -254,5 +261,112 @@ export function addSpeakerLog(
   return apiFetch<MeetingSpeakerLog>(`${V1}/meetings/${meetingId}/speakers`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+/* -------------------------------- Reports ------------------------------ */
+
+export function getSalesReport(period = "all"): Promise<SalesReport> {
+  return apiFetch<SalesReport>(`${V1}/reports/sales?period=${period}`);
+}
+
+export function getRevenueReport(period = "all"): Promise<RevenueReport> {
+  return apiFetch<RevenueReport>(`${V1}/reports/revenue?period=${period}`);
+}
+
+export function getProductivityReport(): Promise<ProductivityReport> {
+  return apiFetch<ProductivityReport>(`${V1}/reports/productivity`);
+}
+
+/**
+ * Expense analytics. The backend currently answers with an error explaining
+ * that no Expense model exists yet, so callers must handle failure rather than
+ * assume a payload.
+ */
+export function getExpenseReport(): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/reports/expense`);
+}
+
+/* ------------------------------ Audit logs ----------------------------- */
+
+export function listAuditLogs(params?: {
+  actor_type?: string;
+  action?: string;
+  resource_type?: string;
+  status?: string;
+  search?: string;
+  limit?: number;
+}): Promise<AuditLog[]> {
+  const q = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== "" && v !== "all") q.set(k, String(v));
+  });
+  const qs = q.toString();
+  return apiFetch<AuditLog[]>(`${V1}/audit-logs${qs ? `?${qs}` : ""}`);
+}
+
+export function getAuditStats(): Promise<AuditStats> {
+  return apiFetch<AuditStats>(`${V1}/audit-logs/stats`);
+}
+
+/* ------------------------------- WhatsApp ------------------------------ */
+
+export function listWhatsAppMessages(fromNumber?: string): Promise<WhatsAppMessage[]> {
+  const qs = fromNumber ? `?from_number=${encodeURIComponent(fromNumber)}` : "";
+  return apiFetch<WhatsAppMessage[]>(`${V1}/whatsapp/messages${qs}`);
+}
+
+/* --------------------------------- Email ------------------------------- */
+
+export function sendEmail(payload: EmailSendRequest): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/email/send`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    timeoutMs: 30_000,
+  });
+}
+
+export function emailInvoice(invoiceId: string): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/email/send-invoice/${invoiceId}`, {
+    method: "POST",
+    timeoutMs: 30_000,
+  });
+}
+
+export function emailQuotation(quotationId: string): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/email/send-quotation/${quotationId}`, {
+    method: "POST",
+    timeoutMs: 30_000,
+  });
+}
+
+/* ---------------------------- PDF & batch jobs ------------------------- */
+
+/**
+ * PDF endpoints stream a file rather than JSON, so they are opened directly.
+ * The token is passed as a query param because a browser navigation cannot
+ * carry an Authorization header — the backend accepts `token` for exactly this.
+ */
+export function invoicePdfUrl(invoiceId: string): string {
+  return `${V1}/invoices/${invoiceId}/pdf?token=${encodeURIComponent(getToken() ?? "")}`;
+}
+
+export function quotationPdfUrl(quotationId: string): string {
+  return `${V1}/quotations/${quotationId}/pdf?token=${encodeURIComponent(getToken() ?? "")}`;
+}
+
+export function processRecurringInvoices(): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/invoices/process-recurring`, { method: "POST" });
+}
+
+export function processInvoiceReminders(): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/invoices/process-reminders`, { method: "POST" });
+}
+
+/** Kick off OCR / text extraction for an uploaded document. */
+export function parseDocument(documentId: string): Promise<unknown> {
+  return apiFetch<unknown>(`${V1}/documents/${documentId}/parse`, {
+    method: "POST",
+    timeoutMs: 60_000,
   });
 }

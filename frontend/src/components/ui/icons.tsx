@@ -204,3 +204,21 @@ export function IconMic({ className }: IconProps) {
     </svg>
   );
 }
+
+
+export function IconChart({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
+}
+
+export function IconShield({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M12 3l8 3v6c0 4.5-3.2 8.3-8 9-4.8-.7-8-4.5-8-9V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}

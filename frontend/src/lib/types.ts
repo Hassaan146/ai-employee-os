@@ -608,3 +608,112 @@ export interface MeetingDraft {
   duration_minutes?: number | null;
   customer_id?: string | null;
 }
+
+/* ------------------------------------------------------------------ */
+/* Reports — backend/app/api/reports.py                                */
+/* ------------------------------------------------------------------ */
+
+export const REPORT_PERIODS = ["all", "today", "week", "month", "year"] as const;
+export type ReportPeriod = (typeof REPORT_PERIODS)[number];
+
+/**
+ * Each by_status entry is an object, not a count — verified against a live
+ * response: {"paid": {"count": 1, "total": 31350.0}}.
+ */
+export interface StatusBucket {
+  count: number;
+  total: number;
+}
+
+export interface SalesReport {
+  period: string;
+  invoices: {
+    total: number;
+    total_amount: number;
+    collected: number;
+    outstanding: number;
+    by_status: Record<string, StatusBucket>;
+  };
+  quotations: {
+    total: number;
+    total_amount: number;
+    by_status: Record<string, StatusBucket>;
+  };
+  top_customers: { name?: string; total_amount?: number }[];
+}
+
+export interface RevenueReport {
+  period: string;
+  total_revenue: number;
+  total_collected: number;
+  monthly: { month?: string; total_amount?: number; collected?: number }[];
+}
+
+export interface ProductivityReport {
+  tasks: {
+    total: number;
+    done: number;
+    completion_rate: number;
+    by_status: Record<string, number>;
+    by_user: { assigned_to_id?: string | null; total?: number; done?: number }[];
+  };
+  meetings: { total: number; completed: number };
+  action_items: { total: number; completed: number };
+}
+
+/* ------------------------------------------------------------------ */
+/* Audit logs — backend/app/api/audit_logs.py                          */
+/* ------------------------------------------------------------------ */
+
+export interface AuditLog {
+  id: string;
+  company_id: string;
+  /** "user" or "ai" — who performed the action. */
+  actor_type: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  details: unknown;
+  status: string;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AuditStats {
+  total: number;
+  success_count: number;
+  failure_count: number;
+  success_rate: number;
+  by_action: Record<string, number>;
+  by_resource: Record<string, number>;
+  by_actor_type: Record<string, number>;
+}
+
+/* ------------------------------------------------------------------ */
+/* WhatsApp — backend/app/api/whatsapp.py                              */
+/* ------------------------------------------------------------------ */
+
+export interface WhatsAppMessage {
+  id: string;
+  from_number: string;
+  message_body: string | null;
+  /** True when the assistant auto-replied to this message. */
+  reply_sent: boolean;
+  reply_text: string | null;
+  created_at: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Email — backend/app/api/email.py                                    */
+/* ------------------------------------------------------------------ */
+
+export interface EmailSendRequest {
+  to_email: string;
+  subject: string;
+  body_html: string;
+  customer_id?: string | null;
+  invoice_id?: string | null;
+  quotation_id?: string | null;
+}
