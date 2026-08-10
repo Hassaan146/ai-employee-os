@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
+    # SMTP / Email Settings
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAILS_FROM_EMAIL: str = "noreply@aiemployeeos.com"
+    EMAILS_FROM_NAME: str = "AI Employee OS"
+
     # AI Service Keys
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""

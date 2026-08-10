@@ -1,7 +1,9 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.activity_timeline import ActivityTimeline
@@ -59,10 +61,38 @@ def create_activity(
     return new_activity
 
 
+@router.get("/activities", response_model=list[ActivityResponse])
+def get_activities(
+    current_user: User = Depends(get_current_user),
+    activity_type: Optional[str] = Query(None),
+    lead_id: Optional[str] = Query(None),
+    customer_id: Optional[str] = Query(None),
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    query = db.query(ActivityTimeline).filter(ActivityTimeline.company_id == current_user.company_id)
+
+    if activity_type:
+        query = query.filter(ActivityTimeline.activity_type == activity_type)
+    if lead_id:
+        query = query.filter(ActivityTimeline.lead_id == uuid.UUID(str(lead_id)))
+    if customer_id:
+        query = query.filter(ActivityTimeline.customer_id == uuid.UUID(str(customer_id)))
+
+    return (
+        query.order_by(ActivityTimeline.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 @router.get("/leads/{lead_id}/activities", response_model=list[ActivityResponse])
 def get_lead_activities(
     lead_id: str,
     current_user: User = Depends(get_current_user),
+    activity_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     try:
@@ -78,13 +108,14 @@ def get_lead_activities(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    activities = (
+    query = (
         db.query(ActivityTimeline)
         .filter(
             ActivityTimeline.lead_id == valid_lead_id,
             ActivityTimeline.company_id == current_user.company_id,
         )
-        .order_by(ActivityTimeline.created_at.desc())
-        .all()
     )
-    return activities
+    if activity_type:
+        query = query.filter(ActivityTimeline.activity_type == activity_type)
+
+    return query.order_by(ActivityTimeline.created_at.desc()).all()

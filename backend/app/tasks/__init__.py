@@ -1,0 +1,1 @@
+"""Background task package (Day 6). Auto-discovered by Celery via app.celery_app."""

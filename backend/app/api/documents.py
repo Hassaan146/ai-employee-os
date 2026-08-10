@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.customer import Customer
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentSearchResponse
+from app.services.document_parser import extract_text
 
 router = APIRouter(prefix="/documents", tags=["AI Document Intelligence"])
 
@@ -51,15 +52,10 @@ async def upload_document(
     with open(file_path, "wb") as f:
         f.write(file_bytes)
 
-    # 3. Text Extraction for Knowledge Base Search
-    extracted_text = ""
-    try:
-        # If text/markdown/json, decode directly
-        extracted_text = file_bytes.decode("utf-8", errors="ignore")
-    except Exception:
-        extracted_text = f"Binary file attachment: {filename}"
-
-    is_searchable = len(extracted_text.strip()) > 0
+    # 3. Text Extraction for Knowledge Base Search (PDF via PyPDF, else UTF-8)
+    parsed = extract_text(file_bytes, file.content_type, filename)
+    extracted_text = parsed["text"]
+    is_searchable = parsed["is_searchable"]
 
     # 4. Create Document Record
     new_doc = Document(
@@ -157,3 +153,42 @@ def delete_document(
     db.delete(doc)
     db.commit()
     return None
+
+
+@router.post("/{document_id}/parse", response_model=DocumentResponse)
+def parse_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Re-run text extraction on an already-uploaded document."""
+    try:
+        valid_doc_id = uuid.UUID(str(document_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc = db.query(Document).filter(
+        Document.id == valid_doc_id,
+        Document.company_id == current_user.company_id
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Re-read the stored file from local storage.
+    stored_name = os.path.basename(doc.file_url or "")
+    path = os.path.join(UPLOAD_DIR, stored_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Stored file not found")
+
+    with open(path, "rb") as f:
+        content = f.read()
+
+    parsed = extract_text(content, doc.mime_type, doc.file_name)
+    doc.extracted_text = parsed["text"]
+    doc.is_searchable = parsed["is_searchable"]
+    doc.status = DocumentStatus.OCR_COMPLETE if doc.is_searchable else DocumentStatus.UPLOADED
+    doc.ai_summary = parsed["text"][:300] if parsed["text"] else None
+    db.commit()
+    db.refresh(doc)
+    return doc

@@ -4,10 +4,10 @@ from typing import Optional, List, Union
 from datetime import datetime
 
 class DocumentResponse(BaseModel):
-    id: uuid.UUID
-    company_id: uuid.UUID
-    uploaded_by_id: Optional[uuid.UUID] = None
-    customer_id: Optional[uuid.UUID] = None
+    id: Union[str, uuid.UUID]
+    company_id: Union[str, uuid.UUID]
+    uploaded_by_id: Optional[Union[str, uuid.UUID]] = None
+    customer_id: Optional[Union[str, uuid.UUID]] = None
     file_name: str
     file_url: str
     file_size_bytes: Optional[int] = None

@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.core.database import Base
+from app.core.database import Base, Uuid
 
 
 class TaskPriority(str, enum.Enum):
@@ -26,14 +26,14 @@ class TaskStatus(str, enum.Enum):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
 
-    company_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
-    assigned_to_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # references users.id (FK to be added once users model exists)
-    created_by_id = Column(UUID(as_uuid=True), nullable=True)  # references users.id (FK to be added once users model exists)
+    company_id = Column(Uuid, nullable=False, index=True)  # references companies.id (FK to be added once companies model exists)
+    assigned_to_id = Column(Uuid, nullable=True, index=True)  # references users.id (FK to be added once users model exists)
+    created_by_id = Column(Uuid, nullable=True)  # references users.id (FK to be added once users model exists)
 
     # Optional links to related records (task can stand alone or relate to a customer/lead)
-    customer_id = Column(UUID(as_uuid=True), nullable=True)  # references customers.id (FK to be added once customers model exists)
+    customer_id = Column(Uuid, nullable=True)  # references customers.id (FK to be added once customers model exists)
 
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
