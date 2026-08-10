@@ -29,7 +29,9 @@ import { LineItemEditor } from "@/components/LineItemEditor";
 import {
   approveQuotation,
   createQuotation,
+  emailQuotation,
   listQuotations,
+  quotationPdfUrl,
   rejectQuotation,
   sendQuotation,
 } from "@/lib/api/operations";
@@ -90,6 +92,18 @@ export function QuotationsView() {
   const shown = (quotations ?? []).filter(
     (q) => statusFilter === "all" || q.status === statusFilter,
   );
+
+  async function emailIt(q: Quotation) {
+    setBusyId(q.id);
+    setError(null);
+    try {
+      await emailQuotation(q.id);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function act(q: Quotation, action: "send" | "approve" | "reject") {
     setBusyId(q.id);
@@ -211,6 +225,21 @@ export function QuotationsView() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1.5">
+                          <a
+                            href={quotationPdfUrl(q.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Download PDF for quotation ${q.quotation_number}`}
+                            className="rounded-lg border border-line bg-surface-2 px-3.5 py-2 text-xs text-ink transition hover:border-accent/40 hover:text-accent"
+                          >
+                            PDF
+                          </a>
+                          <Button
+                            disabled={busyId === q.id}
+                            onClick={() => void emailIt(q)}
+                          >
+                            Email
+                          </Button>
                           {actions.length === 0 ? (
                             <span className="text-[10px] text-ink-faint">
                               No further action

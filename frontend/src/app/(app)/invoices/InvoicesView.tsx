@@ -30,7 +30,11 @@ import { LineItemEditor } from "@/components/LineItemEditor";
 import {
   createInvoice,
   deleteInvoice,
+  emailInvoice,
+  invoicePdfUrl,
   listInvoices,
+  processInvoiceReminders,
+  processRecurringInvoices,
   updateInvoiceStatus,
 } from "@/lib/api/operations";
 import { listCustomers } from "@/lib/api/crm";
@@ -59,6 +63,7 @@ export function InvoicesView() {
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState<Invoice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -105,6 +110,40 @@ export function InvoicesView() {
     }
   }
 
+  async function emailIt(inv: Invoice) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await emailInvoice(inv.id);
+      setNotice(`Invoice ${inv.invoice_number} emailed to the customer.`);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runJob(kind: "recurring" | "reminders") {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res =
+        kind === "recurring"
+          ? await processRecurringInvoices()
+          : await processInvoiceReminders();
+      setNotice(
+        `${kind === "recurring" ? "Recurring invoices" : "Payment reminders"} processed: ${JSON.stringify(res)}`,
+      );
+      await load();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove(inv: Invoice) {
     setBusy(true);
     try {
@@ -129,6 +168,12 @@ export function InvoicesView() {
               <IconRefresh className={cn("size-3.5", busy && "animate-spin")} />
               Refresh
             </Button>
+            <Button onClick={() => void runJob("recurring")} disabled={busy}>
+              Run recurring
+            </Button>
+            <Button onClick={() => void runJob("reminders")} disabled={busy}>
+              Send reminders
+            </Button>
             <Button
               variant="primary"
               onClick={() => setCreating(true)}
@@ -143,6 +188,16 @@ export function InvoicesView() {
       />
 
       {error ? <ErrorNotice error={error} onRetry={() => void load()} /> : null}
+
+      {notice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-ok/25 bg-ok/[0.06] px-4 py-3 text-xs text-ink-muted"
+        >
+          {notice}
+        </div>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <Tile label="Invoices" value={invoices ? String(invoices.length) : null} />
@@ -249,6 +304,18 @@ export function InvoicesView() {
                             </option>
                           ))}
                         </select>
+                        <a
+                          href={invoicePdfUrl(inv.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Download PDF for invoice ${inv.invoice_number}`}
+                          className="rounded-lg border border-line bg-surface-2 px-3.5 py-2 text-xs text-ink transition hover:border-accent/40 hover:text-accent"
+                        >
+                          PDF
+                        </a>
+                        <Button onClick={() => void emailIt(inv)} disabled={busy}>
+                          Email
+                        </Button>
                         <Button variant="danger" onClick={() => setConfirming(inv)}>
                           Delete
                         </Button>

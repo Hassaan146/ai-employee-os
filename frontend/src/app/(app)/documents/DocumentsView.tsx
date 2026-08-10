@@ -30,6 +30,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   deleteDocument,
   listDocuments,
+  parseDocument,
   searchDocuments,
   uploadDocument,
 } from "@/lib/api/operations";
@@ -93,6 +94,20 @@ export function DocumentsView() {
     try {
       const res = await searchDocuments(query.trim());
       setSearchResult(JSON.stringify(res, null, 2));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Trigger server-side text extraction for a document that has not been parsed. */
+  async function parse(doc: StoredDocument) {
+    setBusy(true);
+    setError(null);
+    try {
+      await parseDocument(doc.id);
+      await load();
     } catch (err) {
       setError(err);
     } finally {
@@ -285,7 +300,14 @@ export function DocumentsView() {
                       {shortDate(d.created_at)}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          onClick={() => void parse(d)}
+                          disabled={busy}
+                          title="Run text extraction on this document"
+                        >
+                          Parse
+                        </Button>
                         <Button variant="danger" onClick={() => setConfirming(d)}>
                           Delete
                         </Button>
