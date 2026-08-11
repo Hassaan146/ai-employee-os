@@ -5,7 +5,7 @@ from app.core.database import Base, engine
 from app import models
 from app.api import (
     auth, customers, leads, pipeline, activities, invoices, documents,
-    email, whatsapp, ai_tools_test, websocket, audit_logs
+    email, whatsapp, ai_tools_test, websocket, audit_logs, ai_execution
 )
 from app.api.tasks import router as tasks_router
 from app.api.quotations import router as quotations_router
@@ -35,6 +35,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(invoices.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(email.router, prefix="/api/v1")
+app.include_router(ai_execution.router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)
