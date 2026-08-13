@@ -1,29 +1,24 @@
 "use client";
 
 /**
- * Team — human users. Maps to backend/app/models/user.py
- * (email, full_name, role: admin|manager|employee, is_active) and reads the
- * seat limit from the Company model.
+ * Team.
+ *
+ * The backend has a User model but no endpoint that lists users, so this page
+ * cannot show the whole team yet. Rather than render invented colleagues, it
+ * shows the one user it genuinely knows — the signed-in account from
+ * GET /auth/me — and states what is missing.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Badge,
   Card,
   CardBody,
   CardHeader,
-  EmptyState,
-  Field,
-  Input,
   PageHeader,
-  Select,
-  Skeleton,
-  cn,
 } from "@/components/ui/primitives";
-import { DataSourceNotice } from "@/components/DataSourceNotice";
-import { getCurrentCompany, listUsers } from "@/lib/api/organisation";
-import { USER_ROLES, type Company, type User, type UserRole } from "@/lib/types";
-import type { Sourced } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { USER_ROLES, type UserRole } from "@/lib/types";
 
 const ROLE_TONE: Record<UserRole, "accent" | "info" | "neutral"> = {
   admin: "accent",
@@ -38,190 +33,65 @@ const ROLE_DESCRIPTION: Record<UserRole, string> = {
 };
 
 export function TeamView() {
-  const [users, setUsers] = useState<Sourced<User[]> | null>(null);
-  const [company, setCompany] = useState<Sourced<Company> | null>(null);
-  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    void listUsers().then(setUsers);
-    void getCurrentCompany().then(setCompany);
-  }, []);
-
-  const filtered = useMemo(() => {
-    if (!users) return [];
-    return users.data.filter((u) => {
-      if (roleFilter !== "all" && u.role !== roleFilter) return false;
-      if (query.trim()) {
-        const q = query.trim().toLowerCase();
-        return (
-          u.email.toLowerCase().includes(q) ||
-          (u.full_name ?? "").toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [users, roleFilter, query]);
-
-  const activeCount = users?.data.filter((u) => u.is_active).length ?? 0;
-  const seatLimit = company?.data.max_users ?? null;
-  const seatsUsedPct =
-    seatLimit && seatLimit > 0 ? Math.min(100, (activeCount / seatLimit) * 100) : 0;
-  const overSeatLimit = seatLimit !== null && activeCount > seatLimit;
+  const { user } = useAuth();
 
   return (
     <>
       <PageHeader
         title="Team"
-        description="The people in this workspace. Roles determine what each person can configure and which AI employees they can direct."
+        description="The people in this workspace and the roles that govern what they can do."
       />
 
-      {users?.source === "preview" ? (
-        <DataSourceNotice endpoint="GET /api/v1/users" reason={users.reason} />
-      ) : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warn/25 bg-warn/[0.06] px-4 py-3">
+        <Badge tone="warn">Partial</Badge>
+        <p className="flex-1 text-xs leading-relaxed text-ink-muted">
+          The backend has no{" "}
+          <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink">
+            GET /api/v1/users
+          </code>{" "}
+          endpoint, so the full roster cannot be listed. Only the signed-in
+          account is shown below. This page will list everyone as soon as that
+          route exists — see the{" "}
+          <Link href="/system" className="text-accent hover:underline">
+            API contract
+          </Link>
+          .
+        </p>
+      </div>
 
-      {/* ---------------------------- Seat usage --------------------------- */}
       <Card>
         <CardHeader
-          title="Seat usage"
-          description="Active users against the limit for the current plan."
+          title="Signed-in account"
+          description="From GET /api/v1/auth/me."
+          action={<Badge tone="ok">Live</Badge>}
         />
-        <CardBody className="space-y-3">
-          {users === null || company === null ? (
-            <Skeleton className="h-12 w-full" />
+        <CardBody>
+          {!user ? (
+            <p className="text-xs text-ink-muted">No active session.</p>
           ) : (
-            <>
-              <div className="flex items-baseline justify-between">
-                <p className="text-2xl font-semibold tracking-tight text-ink">
-                  {activeCount}
-                  <span className="text-sm font-normal text-ink-faint">
-                    {" "}
-                    / {seatLimit ?? "unlimited"} seats
-                  </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="grid size-11 shrink-0 place-items-center rounded-full border border-accent/30 bg-accent/10 text-sm font-semibold text-accent">
+                {initials(user.full_name || user.email)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-ink">
+                  {user.full_name ?? "—"}
                 </p>
-                <Badge tone={overSeatLimit ? "danger" : "ok"}>
-                  {overSeatLimit ? "Over limit" : "Within limit"}
+                <p className="truncate text-[11px] text-ink-faint">{user.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge tone={ROLE_TONE[user.role]} className="capitalize">
+                  {user.role}
+                </Badge>
+                <Badge tone={user.is_active ? "ok" : "neutral"}>
+                  {user.is_active ? "Active" : "Deactivated"}
                 </Badge>
               </div>
-              <div
-                className="h-1.5 overflow-hidden rounded-full bg-surface-2"
-                role="progressbar"
-                aria-valuenow={activeCount}
-                aria-valuemin={0}
-                aria-valuemax={seatLimit ?? activeCount}
-                aria-label="Seat usage"
-              >
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    overSeatLimit ? "bg-danger" : "bg-accent",
-                  )}
-                  style={{ width: `${overSeatLimit ? 100 : seatsUsedPct}%` }}
-                />
-              </div>
-              {overSeatLimit ? (
-                <p className="text-[11px] text-danger">
-                  More users are active than the plan allows. Upgrade the plan or
-                  deactivate a user.
-                </p>
-              ) : null}
-            </>
+            </div>
           )}
         </CardBody>
       </Card>
 
-      {/* ----------------------------- Filters ----------------------------- */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-48 flex-1">
-          <Field label="Search" htmlFor="team-search">
-            <Input
-              id="team-search"
-              placeholder="Name or email…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </Field>
-        </div>
-        <div className="w-44">
-          <Field label="Role" htmlFor="team-role">
-            <Select
-              id="team-role"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as "all" | UserRole)}
-            >
-              <option value="all">All roles</option>
-              {USER_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      </div>
-
-      {/* ------------------------------ Table ------------------------------ */}
-      <Card>
-        {users === null ? (
-          <CardBody className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-11 w-full" />
-            ))}
-          </CardBody>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="No users match these filters"
-            description="Try a different search term or role."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[38rem] text-left text-xs">
-              <thead>
-                <tr className="border-b border-line-soft text-[10px] uppercase tracking-wider text-ink-faint">
-                  <th scope="col" className="px-5 py-3 font-medium">User</th>
-                  <th scope="col" className="px-5 py-3 font-medium">Role</th>
-                  <th scope="col" className="px-5 py-3 font-medium">Status</th>
-                  <th scope="col" className="px-5 py-3 font-medium">Joined</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-soft">
-                {filtered.map((u) => (
-                  <tr key={u.id} className="transition hover:bg-surface-2/40">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-[10px] font-semibold text-ink-muted">
-                          {initials(u.full_name ?? u.email)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-ink">
-                            {u.full_name ?? "—"}
-                          </p>
-                          <p className="truncate text-[11px] text-ink-faint">{u.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge tone={ROLE_TONE[u.role]} className="capitalize">
-                        {u.role}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge tone={u.is_active ? "ok" : "neutral"}>
-                        {u.is_active ? "Active" : "Deactivated"}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3 text-ink-muted">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {/* --------------------------- Role legend --------------------------- */}
       <Card>
         <CardHeader
           title="Roles"
@@ -229,7 +99,10 @@ export function TeamView() {
         />
         <CardBody className="grid gap-3 sm:grid-cols-3">
           {USER_ROLES.map((r) => (
-            <div key={r} className="rounded-lg border border-line-soft bg-canvas/50 px-3.5 py-3">
+            <div
+              key={r}
+              className="rounded-lg border border-line-soft bg-canvas/50 px-3.5 py-3"
+            >
               <Badge tone={ROLE_TONE[r]} className="capitalize">
                 {r}
               </Badge>

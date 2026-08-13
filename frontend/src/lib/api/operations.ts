@@ -403,3 +403,44 @@ export function runAiTool(
     timeoutMs: 30_000,
   });
 }
+
+/* ----------------------- Central AI execution router ------------------- */
+
+export interface AiExecuteResponse {
+  success: boolean;
+  tool: string;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
+/** Tools the router will accept, read from the server rather than hardcoded. */
+export function listAiTools(): Promise<{ tools: string[]; count: number }> {
+  return apiFetch<{ tools: string[]; count: number }>(`${V1}/ai/tools`);
+}
+
+/**
+ * Execute a business action through the central AI router.
+ *
+ * This supersedes the temporary /ai-tools-test endpoint: it runs the same
+ * master registry but also writes an audit-log entry and broadcasts the
+ * result over the company WebSocket channel.
+ *
+ * Note it returns 200 with `success: false` for a tool-level failure — only
+ * an unknown tool name is a 400 — so callers must check the flag rather than
+ * assuming a resolved promise means the action worked.
+ */
+export function executeAiAction(
+  toolName: string,
+  parameters: Record<string, unknown>,
+  aiEmployeeId?: string | null,
+): Promise<AiExecuteResponse> {
+  return apiFetch<AiExecuteResponse>(`${V1}/ai/execute`, {
+    method: "POST",
+    body: JSON.stringify({
+      tool_name: toolName,
+      parameters,
+      ai_employee_id: aiEmployeeId ?? null,
+    }),
+    timeoutMs: 45_000,
+  });
+}

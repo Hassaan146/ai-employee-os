@@ -24,7 +24,6 @@ import {
   cn,
 } from "@/components/ui/primitives";
 import { IconRefresh } from "@/components/ui/icons";
-import { AiToolTester } from "@/components/AiToolTester";
 import { checkAllServices, fetchBackendInfo, fetchProviders } from "@/lib/api/system";
 import { AI_URL, BACKEND_URL } from "@/lib/config";
 import type { ServiceHealth } from "@/lib/types";
@@ -60,7 +59,8 @@ const ENDPOINT_MATRIX: {
   { method: "GET", path: "/api/v1/reports/expense", service: "Backend", status: "pending", usedBy: "Reports (needs Expense model)" },
   { method: "GET", path: "/api/v1/audit-logs", service: "Backend", status: "live", usedBy: "Audit logs" },
   { method: "GET", path: "/api/v1/whatsapp/messages", service: "Backend", status: "live", usedBy: "WhatsApp inbox" },
-  { method: "POST", path: "/api/v1/ai-tools-test/{tool}", service: "Backend", status: "live", usedBy: "AI tool tester (internal)" },
+  { method: "POST", path: "/api/v1/ai/execute", service: "Backend", status: "live", usedBy: "AI actions" },
+  { method: "GET", path: "/api/v1/ai/tools", service: "Backend", status: "live", usedBy: "AI actions" },
   { method: "POST", path: "/chat", service: "AI", status: "pending", usedBy: "Assistant chat" },
   { method: "GET", path: "/api/v1/ai-employees", service: "Backend", status: "pending", usedBy: "AI employees" },
   { method: "GET", path: "/api/v1/users", service: "Backend", status: "pending", usedBy: "Team" },
@@ -272,8 +272,6 @@ export function SystemView() {
           </p>
         </CardBody>
       </Card>
-
-      <AiToolTester />
     </>
   );
 }

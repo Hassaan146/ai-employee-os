@@ -1,167 +1,100 @@
 "use client";
 
 /**
- * Company & plan — maps to backend/app/models/company.py
- * (name, pricing_tier, max_users, max_ai_requests, max_storage_gb).
+ * Company & plan.
  *
- * The plan comparison uses the tiers defined in EmployeeOS.md so the pricing
- * shown in the product matches the spec.
+ * There is no GET /api/v1/companies/me yet, so the workspace name, tier and
+ * limits are not knowable. What IS knowable is the company id on the signed-in
+ * user, and the pricing tiers themselves — those come from the product spec
+ * (EmployeeOS.md), not from invented records.
  */
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Badge,
   Card,
   CardBody,
   CardHeader,
   PageHeader,
-  Skeleton,
   cn,
 } from "@/components/ui/primitives";
-import { DataSourceNotice } from "@/components/DataSourceNotice";
-import { getCurrentCompany, listUsers } from "@/lib/api/organisation";
-import { listAIEmployees } from "@/lib/api/employees";
-import {
-  PLAN_LIMITS,
-  PRICING_TIERS,
-  type AIEmployee,
-  type Company,
-  type User,
-} from "@/lib/types";
-import type { Sourced } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { PLAN_LIMITS, PRICING_TIERS } from "@/lib/types";
 
 export function CompanyView() {
-  const [company, setCompany] = useState<Sourced<Company> | null>(null);
-  const [users, setUsers] = useState<Sourced<User[]> | null>(null);
-  const [employees, setEmployees] = useState<Sourced<AIEmployee[]> | null>(null);
-
-  useEffect(() => {
-    void getCurrentCompany().then(setCompany);
-    void listUsers().then(setUsers);
-    void listAIEmployees().then(setEmployees);
-  }, []);
-
-  if (company === null) {
-    return (
-      <>
-        <Skeleton className="h-9 w-56" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </>
-    );
-  }
-
-  const c = company.data;
-  const plan = PLAN_LIMITS[c.pricing_tier];
-  const activeUsers = users?.data.filter((u) => u.is_active).length ?? 0;
-  const activeEmployees = employees?.data.filter((e) => e.is_active).length ?? 0;
+  const { user } = useAuth();
 
   return (
     <>
       <PageHeader
         title="Company & plan"
-        description="Workspace details and the subscription limits that govern seats, AI usage, and storage."
+        description="Workspace identity and the subscription tiers that govern seats, AI usage, and storage."
       />
 
-      {company.source === "preview" ? (
-        <DataSourceNotice endpoint="GET /api/v1/companies/me" reason={company.reason} />
-      ) : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warn/25 bg-warn/[0.06] px-4 py-3">
+        <Badge tone="warn">Partial</Badge>
+        <p className="flex-1 text-xs leading-relaxed text-ink-muted">
+          The backend has no{" "}
+          <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink">
+            GET /api/v1/companies/me
+          </code>{" "}
+          endpoint, so this workspace&apos;s name, current tier and usage limits
+          cannot be read. The plans below are the tiers defined in the product
+          spec, shown for reference — not this company&apos;s subscription. See
+          the{" "}
+          <Link href="/system" className="text-accent hover:underline">
+            API contract
+          </Link>
+          .
+        </p>
+      </div>
 
-      {/* ---------------------------- Profile ----------------------------- */}
       <Card>
         <CardHeader
           title="Workspace"
-          description="Maps to the Company record."
-          action={
-            <Badge tone="accent" className="capitalize">
-              {plan.label} plan
-            </Badge>
-          }
+          description="What the session genuinely knows."
+          action={<Badge tone="ok">Live</Badge>}
         />
         <CardBody>
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            <Detail label="Company name" value={c.name} />
-            <Detail label="Plan" value={`${plan.label} · $${plan.priceUsdPerMonth}/mo`} />
-            <Detail
-              label="Created"
-              value={new Date(c.created_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            />
-            <Detail label="Company ID" value={c.id} mono />
+          <dl className="grid gap-5 sm:grid-cols-2">
+            <div className="min-w-0">
+              <dt className="text-[11px] text-ink-faint">Company ID</dt>
+              <dd
+                className="mt-1 truncate font-mono text-[11px] text-ink"
+                title={user?.company_id}
+              >
+                {user?.company_id ?? "—"}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-[11px] text-ink-faint">Your role</dt>
+              <dd className="mt-1 text-sm capitalize text-ink">
+                {user?.role ?? "—"}
+              </dd>
+            </div>
           </dl>
         </CardBody>
       </Card>
 
-      {/* ----------------------------- Usage ------------------------------ */}
-      <section className="grid gap-4 sm:grid-cols-3">
-        <UsageCard
-          label="Seats"
-          used={activeUsers}
-          limit={c.max_users}
-          unit="users"
-          note="Active human users in the workspace."
-        />
-        <UsageCard
-          label="AI requests"
-          used={null}
-          limit={c.max_ai_requests}
-          unit="req / month"
-          note="Metering lands with the usage service in Phase 2."
-        />
-        <UsageCard
-          label="Storage"
-          used={null}
-          limit={c.max_storage_gb}
-          unit="GB"
-          note="Reported once document storage is connected."
-        />
-      </section>
-
-      <Card>
-        <CardHeader
-          title="AI workforce"
-          description="AI employees configured against this company."
-        />
-        <CardBody>
-          <p className="text-2xl font-semibold tracking-tight text-ink">
-            {activeEmployees}
-            <span className="text-sm font-normal text-ink-faint">
-              {" "}
-              active of {employees?.data.length ?? 0} configured
-            </span>
-          </p>
-        </CardBody>
-      </Card>
-
-      {/* -------------------------- Plan compare -------------------------- */}
       <Card>
         <CardHeader
           title="Plans"
           description="Tiers from the PricingTier enum, with the limits defined in the product spec."
+          action={<Badge>Reference</Badge>}
         />
         <CardBody className="grid gap-4 lg:grid-cols-3">
           {PRICING_TIERS.map((tier) => {
             const p = PLAN_LIMITS[tier];
-            const current = tier === c.pricing_tier;
             return (
               <div
                 key={tier}
                 className={cn(
-                  "flex flex-col rounded-xl border px-4 py-4 transition",
-                  current
-                    ? "border-accent/40 bg-accent/[0.06]"
-                    : "border-line-soft bg-canvas/50",
+                  "flex flex-col rounded-xl border border-line-soft bg-canvas/50 px-4 py-4",
                 )}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink">{p.label}</p>
-                  {current ? <Badge tone="accent">Current</Badge> : null}
-                </div>
+                <p className="text-sm font-semibold text-ink">{p.label}</p>
                 <p className="mt-1.5">
-                  <span className="text-2xl font-semibold tracking-tight text-ink">
+                  <span className="text-2xl font-semibold tabular-nums tracking-tight text-ink">
                     ${p.priceUsdPerMonth}
                   </span>
                   <span className="text-[11px] text-ink-faint"> /month</span>
@@ -169,7 +102,10 @@ export function CompanyView() {
                 <p className="mt-1 text-[11px] text-ink-muted">{p.idealFor}</p>
 
                 <dl className="mt-3.5 space-y-1.5 border-t border-line-soft pt-3.5 text-[11px]">
-                  <Limit label="Users" value={p.maxUsers === null ? "Unlimited" : String(p.maxUsers)} />
+                  <Limit
+                    label="Users"
+                    value={p.maxUsers === null ? "Unlimited" : String(p.maxUsers)}
+                  />
                   <Limit
                     label="AI requests"
                     value={
@@ -183,7 +119,10 @@ export function CompanyView() {
 
                 <ul className="mt-3.5 space-y-1.5 border-t border-line-soft pt-3.5">
                   {p.highlights.map((h) => (
-                    <li key={h} className="flex items-start gap-2 text-[11px] text-ink-muted">
+                    <li
+                      key={h}
+                      className="flex items-start gap-2 text-[11px] text-ink-muted"
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         className="mt-0.5 size-3 shrink-0 text-accent"
@@ -209,90 +148,11 @@ export function CompanyView() {
   );
 }
 
-/* --------------------------- Sub-components --------------------------- */
-
-function Detail({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[11px] text-ink-faint">{label}</dt>
-      <dd
-        className={cn(
-          "mt-1 truncate text-sm text-ink",
-          mono && "font-mono text-[11px]",
-        )}
-        title={value}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
 function Limit({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-ink-faint">{label}</dt>
-      <dd className="text-ink">{value}</dd>
+      <dd className="tabular-nums text-ink">{value}</dd>
     </div>
-  );
-}
-
-function UsageCard({
-  label,
-  used,
-  limit,
-  unit,
-  note,
-}: {
-  label: string;
-  /** null when the backend does not report this metric yet. */
-  used: number | null;
-  limit: number;
-  unit: string;
-  note: string;
-}) {
-  const pct = used !== null && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-
-  return (
-    <Card>
-      <CardBody className="space-y-2.5">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-          {label}
-        </p>
-        <p className="text-xl font-semibold tracking-tight text-ink">
-          {used === null ? (
-            <span className="text-ink-faint">—</span>
-          ) : (
-            used.toLocaleString()
-          )}
-          <span className="text-xs font-normal text-ink-faint">
-            {" "}
-            / {limit.toLocaleString()} {unit}
-          </span>
-        </p>
-        <div
-          className="h-1.5 overflow-hidden rounded-full bg-surface-2"
-          role="progressbar"
-          aria-valuenow={used ?? 0}
-          aria-valuemin={0}
-          aria-valuemax={limit}
-          aria-label={`${label} usage`}
-        >
-          <div
-            className="h-full rounded-full bg-accent transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-[11px] leading-relaxed text-ink-muted">{note}</p>
-      </CardBody>
-    </Card>
   );
 }

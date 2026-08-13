@@ -18,6 +18,7 @@ import {
   IconPulse,
   IconRobot,
   IconTarget,
+  IconTool,
   IconUsers,
 } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
@@ -42,6 +43,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: "Workforce",
     items: [
       { href: "/employees", label: "AI employees", icon: IconRobot, preview: true },
+      { href: "/ai-actions", label: "AI actions", icon: IconTool },
       { href: "/chat", label: "Assistant chat", icon: IconChat, preview: true },
     ],
   },
