@@ -13,7 +13,7 @@ Each tool follows the pattern:
 from sqlalchemy.orm import Session
 from app.models.customer import Customer
 from app.models.lead import Lead
-from app.models.task import Task
+from app.models.task import Task, TaskPriority, TaskStatus
 
 
 def create_customer_tool(params: dict, db: Session, company_id: str) -> dict:
@@ -81,20 +81,27 @@ def update_lead_tool(params: dict, db: Session, company_id: str) -> dict:
         return {"success": False, "tool": "update_lead", "error": str(e)}
 
 
-def create_task_tool(params: dict, db: Session, company_id: str, created_by_id: str) -> dict:
+def create_task_tool(params: dict, db: Session, company_id: str, created_by_id: str = None) -> dict:
     """
     AI Tool: create_task
     Expected params: title, description (optional), due_date (optional), priority (optional), assigned_to_id (optional)
     """
     try:
+        priority_val = params.get("priority", "medium").lower()
+        priority_enum = TaskPriority.MEDIUM
+        for p in TaskPriority:
+            if p.value == priority_val:
+                priority_enum = p
+                break
+
         new_task = Task(
             company_id=company_id,
             created_by_id=created_by_id,
             title=params.get("title"),
             description=params.get("description"),
             due_date=params.get("due_date"),
-            priority=params.get("priority", "medium"),
-            status="pending",
+            priority=priority_enum,
+            status=TaskStatus.TODO,
             assigned_to_id=params.get("assigned_to_id"),
         )
         db.add(new_task)
@@ -111,7 +118,7 @@ def create_task_tool(params: dict, db: Session, company_id: str, created_by_id: 
         return {"success": False, "tool": "create_task", "error": str(e)}
 
 
-# Tool registry — Router isse use karega function ko naam se dhoondne ke liye
+# Tool registry — Router uses this registry to invoke tools by name
 CRM_TOOL_REGISTRY = {
     "create_customer": create_customer_tool,
     "update_lead": update_lead_tool,

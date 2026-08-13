@@ -2,11 +2,8 @@
 """
 WebSocket Connection Manager.
 Handles active WebSocket connections per company (tenant) so that
-real-time alerts (like incoming WhatsApp messages) can be pushed
-to connected frontend clients.
-
-This is designed to be compatible with Member 1's future
-/api/v1/ws/notifications endpoint — same connection pattern.
+real-time alerts (like incoming WhatsApp messages and AI execution progress)
+can be pushed to connected frontend clients.
 """
 
 from fastapi import WebSocket
@@ -45,6 +42,11 @@ class ConnectionManager:
             for dead in dead_connections:
                 self.active_connections[company_id].remove(dead)
 
+    async def broadcast_to_company(self, company_id: str, message: dict):
+        """Alias for send_to_company for multi-tenant broadcasts."""
+        await self.send_to_company(company_id, message)
 
-# Single shared instance across the app
+
+# Shared instance exports across the app
 manager = ConnectionManager()
+ws_manager = manager

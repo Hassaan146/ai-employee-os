@@ -1,15 +1,16 @@
 from fastapi import FastAPI
-from app.celery_app import celery_app
 from fastapi.middleware.cors import CORSMiddleware
+from app.celery_app import celery_app
 from app.core.database import Base, engine
 from app import models
-from app.api import auth, customers, leads, pipeline, activities, invoices, documents
+from app.api import (
+    auth, customers, leads, pipeline, activities, invoices, documents,
+    email, whatsapp, ai_tools_test, websocket, audit_logs, ai_execution
+)
 from app.api.tasks import router as tasks_router
 from app.api.quotations import router as quotations_router
 from app.api.meetings import router as meetings_router
 from app.api.reports import router as reports_router
-from app.api.email import router as email_router
-from app.api import customers, leads, pipeline, activities, invoices, documents, whatsapp, ai_tools_test, websocket, audit_logs
 
 # Auto-create all database tables on startup
 Base.metadata.create_all(bind=engine)
@@ -33,7 +34,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(invoices.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
-app.include_router(email_router, prefix="/api/v1")
+app.include_router(email.router, prefix="/api/v1")
+app.include_router(ai_execution.router, prefix="/api/v1")
 app.include_router(customers.router)
 app.include_router(leads.router)
 app.include_router(pipeline.router)

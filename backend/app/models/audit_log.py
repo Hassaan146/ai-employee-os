@@ -1,7 +1,7 @@
 import uuid
 import enum
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum, JSON, func
+from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, JSON, func
 
 from app.core.database import Base, Uuid
 
@@ -28,11 +28,11 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
-    company_id = Column(Uuid, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(Uuid, nullable=False, index=True)
 
     # Who performed the operation
     actor_type = Column(SQLEnum(AuditActorType), default=AuditActorType.USER, nullable=False, index=True)
-    actor_id = Column(Uuid, ForeignKey("users.id"), nullable=True)  # user id for human actors
+    actor_id = Column(Uuid, nullable=True, index=True)  # user id for human actors
     actor_name = Column(String(255), nullable=True)  # denormalized name/email (or AI tool name) for display
 
     # What was done
