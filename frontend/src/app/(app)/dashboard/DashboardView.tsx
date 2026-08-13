@@ -3,12 +3,13 @@
 /**
  * Dashboard — the console landing page.
  *
- * Mixes genuinely live data (service health from the two /health endpoints)
- * with model-backed views that are still on preview fixtures. Each block is
- * labelled so the distinction is visible at a glance.
+ * Rebuilt to run on live data. It previously showed preview fixtures and a
+ * build-progress panel, which made sense when almost nothing was wired; now
+ * that reports, CRM, invoices and tasks are all live, it surfaces the actual
+ * state of the business instead.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Badge,
@@ -22,211 +23,293 @@ import {
   cn,
 } from "@/components/ui/primitives";
 import {
-  IconChat,
+  IconChart,
   IconChevronRight,
   IconRefresh,
-  IconRobot,
+  IconTarget,
   IconUsers,
 } from "@/components/ui/icons";
+import { ErrorNotice } from "@/components/ErrorNotice";
 import { checkAllServices } from "@/lib/api/system";
-import { listAIEmployees } from "@/lib/api/employees";
-import { getCurrentCompany, listUsers } from "@/lib/api/organisation";
-import { PLAN_LIMITS, type AIEmployee, type Company, type ServiceHealth, type User } from "@/lib/types";
-import type { Sourced } from "@/lib/api/client";
+import { listCustomers, listLeads } from "@/lib/api/crm";
+import {
+  getProductivityReport,
+  getSalesReport,
+  listInvoices,
+  listTasks,
+} from "@/lib/api/operations";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { money, shortDate } from "@/lib/format";
+import type {
+  Invoice,
+  ProductivityReport,
+  SalesReport,
+  ServiceHealth,
+  Task,
+} from "@/lib/types";
 
 export function DashboardView() {
+  const { user } = useAuth();
   const [services, setServices] = useState<ServiceHealth[] | null>(null);
-  const [employees, setEmployees] = useState<Sourced<AIEmployee[]> | null>(null);
-  const [users, setUsers] = useState<Sourced<User[]> | null>(null);
-  const [company, setCompany] = useState<Sourced<Company> | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [sales, setSales] = useState<SalesReport | null>(null);
+  const [productivity, setProductivity] = useState<ProductivityReport | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [counts, setCounts] = useState<{ customers: number; leads: number } | null>(
+    null,
+  );
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
 
-  async function loadAll() {
-    setRefreshing(true);
-    const [svc, emp, usr, cmp] = await Promise.all([
-      checkAllServices(),
-      listAIEmployees(),
-      listUsers(),
-      getCurrentCompany(),
-    ]);
-    setServices(svc);
-    setEmployees(emp);
-    setUsers(usr);
-    setCompany(cmp);
-    setRefreshing(false);
-  }
+  const load = useCallback(async () => {
+    setBusy(true);
+    setError(null);
 
-  useEffect(() => {
-    void loadAll();
+    // Health is independent of the data calls and must not be blocked by them.
+    void checkAllServices().then(setServices);
+
+    try {
+      const [s, p, inv, tk, cus, lds] = await Promise.all([
+        getSalesReport("all"),
+        getProductivityReport(),
+        listInvoices(),
+        listTasks({ page_size: 100 }),
+        listCustomers(),
+        listLeads(),
+      ]);
+      setSales(s);
+      setProductivity(p);
+      setInvoices(inv);
+      setTasks(tk.items);
+      setCounts({ customers: cus.length, leads: lds.length });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
   }, []);
 
-  const activeEmployees = employees?.data.filter((e) => e.is_active).length ?? 0;
-  const activeUsers = users?.data.filter((u) => u.is_active).length ?? 0;
-  const plan = company ? PLAN_LIMITS[company.data.pricing_tier] : null;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const openInvoices = invoices
+    .filter((i) => i.status !== "paid" && i.status !== "cancelled")
+    .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+
+  // Tasks with no due date sort last rather than first.
+  const openTasks = tasks
+    .filter((t) => t.status !== "done" && t.status !== "cancelled")
+    .sort((a, b) => (a.due_date ?? "￿").localeCompare(b.due_date ?? "￿"));
+
+  const firstName = user?.full_name?.split(" ")[0] ?? "there";
 
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        description="Current state of the AI Employee OS platform: service health, the AI workforce, and your organisation."
+        title={`Welcome back, ${firstName}`}
+        description="Live position across sales, billing, and work in progress."
         action={
-          <Button onClick={() => void loadAll()} disabled={refreshing}>
-            <IconRefresh className={cn("size-3.5", refreshing && "animate-spin")} />
-            {refreshing ? "Refreshing" : "Refresh"}
+          <Button onClick={() => void load()} disabled={busy}>
+            <IconRefresh className={cn("size-3.5", busy && "animate-spin")} />
+            Refresh
           </Button>
         }
       />
 
-      {/* --------------------------- Stat row --------------------------- */}
+      {error ? <ErrorNotice error={error} onRetry={() => void load()} /> : null}
+
+      {/* ---------------------------- Headline ---------------------------- */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Services online"
+        <Stat
+          label="Invoiced"
+          value={sales ? money(sales.invoices.total_amount) : null}
+          hint={sales ? `${sales.invoices.total} invoice(s)` : undefined}
+        />
+        <Stat
+          label="Collected"
+          value={sales ? money(sales.invoices.collected) : null}
+          hint="Payments received"
+        />
+        <Stat
+          label="Outstanding"
+          value={sales ? money(sales.invoices.outstanding) : null}
+          hint="Awaiting payment"
+          tone={sales && sales.invoices.outstanding > 0 ? "warn" : undefined}
+        />
+        <Stat
+          label="Task completion"
           value={
-            services
-              ? `${services.filter((s) => s.state === "online").length}/${services.length}`
+            productivity
+              ? `${Math.round(productivity.tasks.completion_rate * 100)}%`
               : null
           }
-          hint="Backend API + AI service"
-          tone="live"
-        />
-        <StatCard
-          label="Active AI employees"
-          value={employees ? `${activeEmployees}/${employees.data.length}` : null}
-          hint="Agents available to handle work"
-          tone={employees?.source === "live" ? "live" : "preview"}
-        />
-        <StatCard
-          label="Active team members"
-          value={users ? `${activeUsers}/${users.data.length}` : null}
           hint={
-            company ? `Seat limit: ${company.data.max_users}` : "Human users in the workspace"
+            productivity
+              ? `${productivity.tasks.done}/${productivity.tasks.total} done`
+              : undefined
           }
-          tone={users?.source === "live" ? "live" : "preview"}
-        />
-        <StatCard
-          label="Current plan"
-          value={plan ? plan.label : null}
-          hint={plan ? `$${plan.priceUsdPerMonth}/month` : "Subscription tier"}
-          tone={company?.source === "live" ? "live" : "preview"}
         />
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        {/* ------------------------ Service health ---------------------- */}
-        <Card className="lg:col-span-1">
+      {/* ------------------------------ CRM ------------------------------- */}
+      <section className="grid gap-4 sm:grid-cols-3">
+        <MiniLink
+          href="/crm/customers"
+          icon={<IconUsers className="size-4" />}
+          label="Customers"
+          value={counts ? String(counts.customers) : null}
+        />
+        <MiniLink
+          href="/crm/leads"
+          icon={<IconTarget className="size-4" />}
+          label="Leads"
+          value={counts ? String(counts.leads) : null}
+        />
+        <MiniLink
+          href="/reports"
+          icon={<IconChart className="size-4" />}
+          label="Quotations"
+          value={sales ? String(sales.quotations.total) : null}
+        />
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* ------------------------ Needs attention ----------------------- */}
+        <Card>
           <CardHeader
-            title="Service health"
-            description="Polled from live endpoints."
+            title="Invoices awaiting payment"
+            description="Unpaid invoices, soonest due first."
             action={<Badge tone="ok">Live</Badge>}
           />
-          <CardBody className="space-y-3">
-            {services === null
-              ? [0, 1].map((i) => <Skeleton key={i} className="h-14 w-full" />)
-              : services.map((svc) => (
-                  <div
-                    key={svc.key}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <StatusDot tone={svc.state === "online" ? "ok" : "danger"} />
-                        <p className="text-xs font-medium text-ink">{svc.name}</p>
-                      </div>
-                      <p className="truncate font-mono text-[10px] text-ink-faint">
-                        {svc.baseUrl}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-[11px] text-ink-muted">
-                      {svc.state === "online" ? `${svc.latencyMs} ms` : "offline"}
-                    </span>
+          <CardBody className="space-y-2">
+            {sales === null ? (
+              [0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)
+            ) : openInvoices.length === 0 ? (
+              <p className="py-6 text-center text-xs text-ink-muted">
+                Nothing outstanding — every invoice is settled.
+              </p>
+            ) : (
+              openInvoices.slice(0, 5).map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-[11px] text-ink">
+                      {inv.invoice_number}
+                    </p>
+                    <p className="text-[10px] text-ink-faint">
+                      due {shortDate(inv.due_date)}
+                    </p>
                   </div>
-                ))}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="tabular-nums text-xs text-ink">
+                      {money(inv.total_amount - inv.amount_paid, inv.currency)}
+                    </span>
+                    <Badge tone={inv.status === "overdue" ? "danger" : "warn"}>
+                      {inv.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
             <Link
-              href="/system"
+              href="/invoices"
               className="flex items-center gap-1 pt-1 text-[11px] font-medium text-accent hover:underline"
             >
-              Open system status <IconChevronRight className="size-3" />
+              All invoices <IconChevronRight className="size-3" />
             </Link>
           </CardBody>
         </Card>
 
-        {/* ------------------------ AI workforce ------------------------ */}
-        <Card className="lg:col-span-2">
+        {/* --------------------------- Open work -------------------------- */}
+        <Card>
           <CardHeader
-            title="AI workforce"
-            description="AI employees configured for this company."
-            action={
-              <Badge tone={employees?.source === "live" ? "ok" : "warn"}>
-                {employees?.source === "live" ? "Live" : "Preview"}
-              </Badge>
-            }
+            title="Open tasks"
+            description="Work in progress, soonest due first."
+            action={<Badge tone="ok">Live</Badge>}
           />
           <CardBody className="space-y-2">
-            {employees === null
-              ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)
-              : employees.data.slice(0, 5).map((emp) => (
-                  <Link
-                    key={emp.id}
-                    href={`/employees/${emp.id}`}
-                    className="group flex items-center gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5 transition hover:border-accent/30"
-                  >
-                    <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-ink-muted group-hover:text-accent">
-                      <IconRobot className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-ink">{emp.name}</p>
-                      <p className="truncate text-[11px] capitalize text-ink-faint">
-                        {emp.role_type}
-                      </p>
-                    </div>
-                    <Badge tone={emp.is_active ? "ok" : "neutral"}>
-                      {emp.is_active ? "Active" : "Paused"}
+            {productivity === null ? (
+              [0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)
+            ) : openTasks.length === 0 ? (
+              <p className="py-6 text-center text-xs text-ink-muted">No open tasks.</p>
+            ) : (
+              openTasks.slice(0, 5).map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs text-ink">{t.title}</p>
+                    <p className="text-[10px] text-ink-faint">
+                      {t.due_date ? `due ${shortDate(t.due_date)}` : "no due date"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {t.is_ai_generated ? <Badge tone="accent">AI</Badge> : null}
+                    <Badge
+                      tone={
+                        t.priority === "urgent"
+                          ? "danger"
+                          : t.priority === "high"
+                            ? "warn"
+                            : "neutral"
+                      }
+                    >
+                      {t.priority}
                     </Badge>
-                    <IconChevronRight className="size-3.5 shrink-0 text-ink-faint group-hover:text-accent" />
-                  </Link>
-                ))}
+                  </div>
+                </div>
+              ))
+            )}
+            <Link
+              href="/tasks"
+              className="flex items-center gap-1 pt-1 text-[11px] font-medium text-accent hover:underline"
+            >
+              All tasks <IconChevronRight className="size-3" />
+            </Link>
           </CardBody>
         </Card>
       </div>
 
-      {/* --------------------------- Quick links ------------------------- */}
-      <section className="grid gap-4 sm:grid-cols-3">
-        <QuickLink
-          href="/chat"
-          icon={<IconChat className="size-4" />}
-          title="Talk to an assistant"
-          body="Send a request to any of the five implemented AI employees."
-        />
-        <QuickLink
-          href="/employees"
-          icon={<IconRobot className="size-4" />}
-          title="Manage AI employees"
-          body="Configure roles, system prompts, and tool permissions."
-        />
-        <QuickLink
-          href="/team"
-          icon={<IconUsers className="size-4" />}
-          title="Manage the team"
-          body="Review human users, their roles, and seat usage."
-        />
-      </section>
-
-      {/* ------------------------- Build progress ------------------------ */}
+      {/* --------------------------- Service health ------------------------ */}
       <Card>
         <CardHeader
-          title="Delivery progress"
-          description="Frontend scope against the backend that exists today."
+          title="Service health"
+          description="Polled from the live health endpoints."
+          action={
+            <Link
+              href="/system"
+              className="text-[11px] font-medium text-accent hover:underline"
+            >
+              System status
+            </Link>
+          }
         />
-        <CardBody className="space-y-4">
-          <ProgressBar label="Phase 1 — foundation & built-backend UI" percent={30} tone="accent" />
-          <ProgressBar label="Phase 2 — full product surface" percent={0} tone="muted" />
-          <p className="text-[11px] leading-relaxed text-ink-muted">
-            Phase 1 covers every model and endpoint currently in the repository:
-            the two health services, the Company / User / AIEmployee models, and
-            the five agents in <code className="font-mono text-ink">ai/app/agents/</code>.
-            Phase 2 begins when the backend exposes CRUD, auth, and the chat
-            endpoint. See <code className="font-mono text-ink">frontend/PHASES.md</code>.
-          </p>
+        <CardBody className="grid gap-3 sm:grid-cols-2">
+          {services === null
+            ? [0, 1].map((i) => <Skeleton key={i} className="h-14 w-full" />)
+            : services.map((svc) => (
+                <div
+                  key={svc.key}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <StatusDot tone={svc.state === "online" ? "ok" : "danger"} />
+                      <p className="text-xs font-medium text-ink">{svc.name}</p>
+                    </div>
+                    <p className="truncate font-mono text-[10px] text-ink-faint">
+                      {svc.baseUrl}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[11px] text-ink-muted">
+                    {svc.state === "online" ? `${svc.latencyMs} ms` : "offline"}
+                  </span>
+                </div>
+              ))}
         </CardBody>
       </Card>
     </>
@@ -235,7 +318,7 @@ export function DashboardView() {
 
 /* --------------------------- Sub-components --------------------------- */
 
-function StatCard({
+function Stat({
   label,
   value,
   hint,
@@ -243,91 +326,63 @@ function StatCard({
 }: {
   label: string;
   value: string | null;
-  hint: string;
-  tone: "live" | "preview";
+  hint?: string;
+  tone?: "warn";
 }) {
   return (
     <Card className="animate-fade-up">
       <CardBody className="space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-            {label}
-          </p>
-          <span
-            className={cn(
-              "size-1.5 rounded-full",
-              tone === "live" ? "bg-ok" : "bg-warn",
-            )}
-            title={tone === "live" ? "Live data" : "Preview data"}
-          />
-        </div>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+          {label}
+        </p>
         {value === null ? (
-          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-7 w-24" />
         ) : (
-          <p className="text-2xl font-semibold tracking-tight text-ink">{value}</p>
+          <p
+            className={cn(
+              "text-2xl font-semibold tabular-nums tracking-tight",
+              tone === "warn" ? "text-warn" : "text-ink",
+            )}
+          >
+            {value}
+          </p>
         )}
-        <p className="text-[11px] text-ink-muted">{hint}</p>
+        {hint ? <p className="text-[11px] text-ink-muted">{hint}</p> : null}
       </CardBody>
     </Card>
   );
 }
 
-function QuickLink({
+function MiniLink({
   href,
   icon,
-  title,
-  body,
+  label,
+  value,
 }: {
   href: string;
   icon: React.ReactNode;
-  title: string;
-  body: string;
+  label: string;
+  value: string | null;
 }) {
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-line bg-surface/70 px-4 py-4 transition hover:border-accent/40"
+      className="group flex items-center gap-3 rounded-xl border border-line bg-surface/70 px-4 py-3.5 transition hover:border-accent/40"
     >
-      <div className="mb-2.5 grid size-8 place-items-center rounded-lg border border-line bg-surface-2 text-ink-muted transition group-hover:border-accent/40 group-hover:text-accent">
+      <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-ink-muted transition group-hover:border-accent/40 group-hover:text-accent">
         {icon}
       </div>
-      <p className="text-xs font-medium text-ink">{title}</p>
-      <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">{body}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-ink-faint">{label}</p>
+        {value === null ? (
+          <Skeleton className="mt-1 h-6 w-12" />
+        ) : (
+          <p className="text-xl font-semibold tabular-nums tracking-tight text-ink">
+            {value}
+          </p>
+        )}
+      </div>
+      <IconChevronRight className="size-3.5 shrink-0 text-ink-faint group-hover:text-accent" />
     </Link>
-  );
-}
-
-function ProgressBar({
-  label,
-  percent,
-  tone,
-}: {
-  label: string;
-  percent: number;
-  tone: "accent" | "muted";
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-ink-muted">{label}</span>
-        <span className="font-mono text-ink">{percent}%</span>
-      </div>
-      <div
-        className="h-1.5 overflow-hidden rounded-full bg-surface-2"
-        role="progressbar"
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={label}
-      >
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            tone === "accent" ? "bg-accent" : "bg-line",
-          )}
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
   );
 }

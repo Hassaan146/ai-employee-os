@@ -1,3 +1,4 @@
+import { MobileNav } from "@/components/layout/MobileNav";
 import { RequireAuth } from "@/components/layout/RequireAuth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
@@ -18,6 +19,7 @@ export default function AppLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <MobileNav />
           <Topbar />
           <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto">
             <div className="mx-auto max-w-6xl space-y-6 px-5 py-6 lg:px-8">
