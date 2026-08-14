@@ -1,25 +1,25 @@
 /**
- * Tests that the frontend calls the exact endpoint paths the backend team has
- * agreed to build, and that each one degrades to preview data until it exists.
+ * Tests for the AI service contract and the agent roster.
  *
- * These paths are the contract shown on the system status page. If someone
- * changes a URL here without updating that table, this test should fail.
+ * This file previously also covered the employees/organisation API modules.
+ * Those were deleted along with their fixtures — the backend never built the
+ * routes, so calling them only ever produced invented data. The pages that used
+ * them now read real session data or the roster in src/lib/agents.ts, which is
+ * what the remaining tests here pin.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAIEmployee, getAIEmployee, listAIEmployees, updateAIEmployee } from "@/lib/api/employees";
-import { getCurrentCompany, listUsers } from "@/lib/api/organisation";
-import { CHAT_AGENTS, sendChatMessage } from "@/lib/api/chat";
-import { AI_URL, BACKEND_URL } from "@/lib/config";
-import { IMPLEMENTED_AI_ROLES } from "@/lib/types";
+import { CHAT_AGENTS, getSessionId, sendChatMessage } from "@/lib/api/chat";
+import { AI_URL } from "@/lib/config";
+import { AGENT_MODULES, ROLES_WITHOUT_MODULE } from "@/lib/agents";
+import { AI_ROLE_TYPES, IMPLEMENTED_AI_ROLES } from "@/lib/types";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-/** Stub fetch as a backend that has not implemented anything yet. */
-function stubAllMissing() {
+function stubMissing() {
   const spy = vi.fn().mockResolvedValue({
     ok: false,
     status: 404,
@@ -30,50 +30,9 @@ function stubAllMissing() {
   return spy;
 }
 
-describe("endpoint paths", () => {
-  it.each([
-    ["listAIEmployees", () => listAIEmployees(), `${BACKEND_URL}/api/v1/ai-employees`],
-    ["getAIEmployee", () => getAIEmployee("abc"), `${BACKEND_URL}/api/v1/ai-employees/abc`],
-    ["listUsers", () => listUsers(), `${BACKEND_URL}/api/v1/users`],
-    ["getCurrentCompany", () => getCurrentCompany(), `${BACKEND_URL}/api/v1/companies/me`],
-  ] as const)("%s calls %s", async (_name, call, expectedUrl) => {
-    const spy = stubAllMissing();
-
-    await call();
-
-    expect(spy.mock.calls[0][0]).toBe(expectedUrl);
-  });
-
-  it("createAIEmployee POSTs the draft", async () => {
-    const spy = stubAllMissing();
-
-    await createAIEmployee({
-      name: "Sales Manager",
-      role_type: "sales",
-      system_prompt: null,
-      permissions: {},
-      is_active: true,
-    });
-
-    const [url, init] = spy.mock.calls[0];
-    expect(url).toBe(`${BACKEND_URL}/api/v1/ai-employees`);
-    expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toMatchObject({ name: "Sales Manager", role_type: "sales" });
-  });
-
-  it("updateAIEmployee PATCHes only the changed fields", async () => {
-    const spy = stubAllMissing();
-
-    await updateAIEmployee("abc", { is_active: false });
-
-    const [url, init] = spy.mock.calls[0];
-    expect(url).toBe(`${BACKEND_URL}/api/v1/ai-employees/abc`);
-    expect(init.method).toBe("PATCH");
-    expect(JSON.parse(init.body)).toEqual({ is_active: false });
-  });
-
-  it("sendChatMessage POSTs the ai/plan.md contract to the AI service", async () => {
-    const spy = stubAllMissing();
+describe("chat contract", () => {
+  it("posts the ai/plan.md shape to the AI service", async () => {
+    const spy = stubMissing();
 
     await sendChatMessage(
       { message: "hello", session_id: "web-1", agent: "sales" },
@@ -83,78 +42,67 @@ describe("endpoint paths", () => {
     const [url, init] = spy.mock.calls[0];
     expect(url).toBe(`${AI_URL}/chat`);
     expect(init.method).toBe("POST");
-    // The AI service expects exactly these three keys.
+    // The service expects exactly these three keys.
     expect(JSON.parse(init.body)).toEqual({
       message: "hello",
       session_id: "web-1",
       agent: "sales",
     });
   });
-});
 
-describe("preview fallback while the backend is incomplete", () => {
-  it.each([
-    ["AI employees", () => listAIEmployees()],
-    ["users", () => listUsers()],
-    ["company", () => getCurrentCompany()],
-  ])("%s degrades to preview data on 404", async (_name, call) => {
-    stubAllMissing();
+  it("falls back to a reply that admits the endpoint is missing", async () => {
+    stubMissing();
 
-    const result = await call();
-
-    expect(result.source).toBe("preview");
-    expect(result.data).toBeTruthy();
-  });
-
-  it("chat returns a preview reply that admits the endpoint is missing", async () => {
-    stubAllMissing();
-
-    const result = await sendChatMessage(
+    const res = await sendChatMessage(
       { message: "What open deals does John have?", session_id: "s", agent: "sales" },
       "Sales Manager",
     );
 
-    expect(result.source).toBe("preview");
-    // The canned reply must not impersonate a real model answer.
-    expect(result.data.response).toContain("Preview reply");
-    expect(result.data.response).toContain("POST /chat");
+    expect(res.source).toBe("preview");
+    // Must not imitate a real model answer.
+    expect(res.data.response).toContain("Preview reply");
+    expect(res.data.response).toContain("POST /chat");
   });
 
-  // Proves the swap to live data needs no code change once routes ship.
-  it("switches to live data automatically when an endpoint exists", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        json: async () => [
-          {
-            id: "real-1",
-            company_id: "c1",
-            name: "Live Sales Manager",
-            role_type: "sales",
-            system_prompt: null,
-            permissions: {},
-            is_active: true,
-            created_at: "2026-08-01T00:00:00Z",
-            updated_at: "2026-08-01T00:00:00Z",
-          },
-        ],
-      }),
-    );
-
-    const result = await listAIEmployees();
-
-    expect(result.source).toBe("live");
-    expect(result.data[0].name).toBe("Live Sales Manager");
+  it("keeps a stable session id across calls", () => {
+    expect(getSessionId()).toBe(getSessionId());
   });
 });
 
-describe("chat agent registry", () => {
-  it("only offers agents that have a module in ai/app/agents/", () => {
-    const offered = CHAT_AGENTS.map((a) => a.id).sort();
+describe("agent roster", () => {
+  it("offers exactly the roles that have an agent module", () => {
+    expect(AGENT_MODULES.map((a) => a.id).sort()).toEqual(
+      [...IMPLEMENTED_AI_ROLES].sort(),
+    );
+  });
 
-    expect(offered).toEqual([...IMPLEMENTED_AI_ROLES].sort());
+  it("chat offers the same roles as the roster", () => {
+    expect(CHAT_AGENTS.map((a) => a.id).sort()).toEqual(
+      AGENT_MODULES.map((a) => a.id).sort(),
+    );
+  });
+
+  it("every roster role is a valid AIRoleType", () => {
+    AGENT_MODULES.forEach((a) => {
+      expect(AI_ROLE_TYPES).toContain(a.id);
+    });
+  });
+
+  it("roles without a module do not overlap the roster", () => {
+    const implemented = new Set(AGENT_MODULES.map((a) => a.id));
+    ROLES_WITHOUT_MODULE.forEach((r) => {
+      expect(implemented.has(r)).toBe(false);
+    });
+  });
+
+  it("roster plus unimplemented roles accounts for every enum value", () => {
+    const all = [...AGENT_MODULES.map((a) => a.id), ...ROLES_WITHOUT_MODULE].sort();
+    expect(all).toEqual([...AI_ROLE_TYPES].sort());
+  });
+
+  it("cites a source file for each agent so the claim is checkable", () => {
+    AGENT_MODULES.forEach((a) => {
+      expect(a.source).toMatch(/^ai\/app\/agents\/\w+\.py$/);
+    });
   });
 });

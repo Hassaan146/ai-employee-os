@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * AI employee detail — edits every writable column on the AIEmployee model.
+ * AI employee detail.
  *
- * The permission toggles are generated from the tool registry in
- * ai/app/tools/. Only `search_crm` is implemented today; the rest are listed
- * as planned so the permission model is visible but not misleading.
+ * Read-only, for the same reason as the list: the AIEmployee model has no CRUD
+ * routes, so there is nothing to load or save. This shows what the agent module
+ * in ai/app/agents/ actually declares, and marks each tool with whether the
+ * backend's AI router can execute it.
  */
 
 import { useEffect, useState } from "react";
@@ -17,117 +18,29 @@ import {
   CardBody,
   CardHeader,
   EmptyState,
-  Field,
-  Input,
   PageHeader,
-  Select,
   Skeleton,
-  Textarea,
-  cn,
 } from "@/components/ui/primitives";
-import { IconChevronRight, IconTool } from "@/components/ui/icons";
-import { DataSourceNotice } from "@/components/DataSourceNotice";
-import { getAIEmployee, updateAIEmployee } from "@/lib/api/employees";
-import {
-  AI_ROLE_TYPES,
-  IMPLEMENTED_AI_ROLES,
-  type AIEmployee,
-  type AIRoleType,
-} from "@/lib/types";
-import type { Sourced } from "@/lib/api/client";
-
-/**
- * Tools an AI employee can be granted. `implemented` reflects what actually
- * exists in ai/app/tools/ — everything else is on the Phase 2 roadmap.
- */
-const TOOL_CATALOGUE: {
-  key: string;
-  label: string;
-  description: string;
-  implemented: boolean;
-}[] = [
-  {
-    key: "search_crm",
-    label: "search_crm",
-    description: "Look up a customer record in the CRM by name.",
-    implemented: true,
-  },
-  {
-    key: "send_email",
-    label: "send_email",
-    description: "Draft and send email on the company's behalf.",
-    implemented: false,
-  },
-  {
-    key: "create_meeting",
-    label: "create_meeting",
-    description: "Create a calendar event and invite attendees.",
-    implemented: false,
-  },
-  {
-    key: "generate_invoice",
-    label: "generate_invoice",
-    description: "Produce an invoice PDF and track payment status.",
-    implemented: false,
-  },
-  {
-    key: "create_quotation",
-    label: "create_quotation",
-    description: "Build a branded quotation with tax and discounts.",
-    implemented: false,
-  },
-];
+import { IconChevronRight, IconRobot, IconTool } from "@/components/ui/icons";
+import { listAiTools } from "@/lib/api/operations";
+import { AGENT_MODULES } from "@/lib/agents";
 
 export function EmployeeDetailView({ id }: { id: string }) {
-  const [result, setResult] = useState<Sourced<AIEmployee | null> | null>(null);
-  const [draft, setDraft] = useState<AIEmployee | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [executableTools, setExecutableTools] = useState<string[] | null>(null);
+  const agent = AGENT_MODULES.find((a) => a.id === id);
 
   useEffect(() => {
-    void getAIEmployee(id).then((res) => {
-      setResult(res);
-      setDraft(res.data);
-    });
-  }, [id]);
+    listAiTools()
+      .then((r) => setExecutableTools(r.tools))
+      .catch(() => setExecutableTools([]));
+  }, []);
 
-  const dirty =
-    draft !== null &&
-    result?.data !== null &&
-    result !== null &&
-    JSON.stringify(draft) !== JSON.stringify(result.data);
-
-  async function save() {
-    if (!draft) return;
-    setSaving(true);
-    const updated = await updateAIEmployee(draft.id, {
-      name: draft.name,
-      role_type: draft.role_type,
-      system_prompt: draft.system_prompt,
-      permissions: draft.permissions,
-      is_active: draft.is_active,
-    });
-    setResult(updated);
-    setDraft(updated.data);
-    setSavedAt(new Date().toLocaleTimeString());
-    setSaving(false);
-  }
-
-  if (result === null) {
-    return (
-      <>
-        <Skeleton className="h-9 w-64" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </>
-    );
-  }
-
-  if (draft === null) {
+  if (!agent) {
     return (
       <Card>
         <EmptyState
-          title="AI employee not found"
-          description={`No AI employee exists with id "${id}".`}
+          title="No such AI employee"
+          description={`No agent module is registered for "${id}".`}
           action={
             <Link href="/employees">
               <Button variant="primary">Back to AI employees</Button>
@@ -138,216 +51,112 @@ export function EmployeeDetailView({ id }: { id: string }) {
     );
   }
 
-  const hasAgent = IMPLEMENTED_AI_ROLES.includes(draft.role_type);
-
   return (
     <>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-ink-faint">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-1 text-[11px] text-ink-faint"
+      >
         <Link href="/employees" className="hover:text-ink">
           AI employees
         </Link>
         <IconChevronRight className="size-3" />
-        <span className="text-ink-muted">{draft.name}</span>
+        <span className="text-ink-muted">{agent.label}</span>
       </nav>
 
       <PageHeader
-        title={draft.name}
-        description="Configure this AI employee's role, persona, and tool permissions."
-        action={
-          <div className="flex items-center gap-2">
-            {savedAt ? (
-              <span className="text-[11px] text-ink-faint">Saved at {savedAt}</span>
-            ) : null}
-            <Button variant="primary" onClick={() => void save()} disabled={!dirty || saving}>
-              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-            </Button>
-          </div>
-        }
+        title={agent.label}
+        description={agent.blurb}
+        action={<Badge tone="accent">Module ready</Badge>}
       />
 
-      {result.source === "preview" ? (
-        <DataSourceNotice
-          endpoint={`GET /api/v1/ai-employees/${id}`}
-          reason={result.reason}
-        />
-      ) : null}
+      <div className="rounded-lg border border-info/25 bg-info/[0.06] px-4 py-3">
+        <Badge tone="info">Read-only</Badge>
+        <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
+          Editing the persona and permissions needs{" "}
+          <code className="font-mono text-ink">PATCH /api/v1/ai-employees/&#123;id&#125;</code>
+          , which does not exist yet. What you see below is read from the agent
+          module in the repository.
+        </p>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {/* --------------------------- Identity --------------------------- */}
         <Card className="lg:col-span-2">
           <CardHeader
-            title="Identity & persona"
-            description="Maps to the name, role_type, and system_prompt columns."
+            title="Tools"
+            description="Declared in the agent's tool_names, checked against the backend router."
           />
-          <CardBody className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name" htmlFor="emp-name">
-                <Input
-                  id="emp-name"
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                />
-              </Field>
-              <Field
-                label="Role type"
-                htmlFor="emp-role-type"
-                hint={
-                  hasAgent
-                    ? "Agent module found in ai/app/agents/."
-                    : "No agent module for this role yet."
-                }
-              >
-                <Select
-                  id="emp-role-type"
-                  value={draft.role_type}
-                  onChange={(e) =>
-                    setDraft({ ...draft, role_type: e.target.value as AIRoleType })
-                  }
-                >
-                  {AI_ROLE_TYPES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                      {IMPLEMENTED_AI_ROLES.includes(r) ? "" : " (no agent yet)"}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-
-            <Field
-              label="System prompt"
-              htmlFor="emp-prompt"
-              hint="Sent as the system message on every request this employee handles."
-            >
-              <Textarea
-                id="emp-prompt"
-                rows={12}
-                value={draft.system_prompt ?? ""}
-                onChange={(e) =>
-                  setDraft({ ...draft, system_prompt: e.target.value || null })
-                }
-                className="font-mono text-[12px]"
-              />
-            </Field>
+          <CardBody className="space-y-2">
+            {agent.tools.length === 0 ? (
+              <p className="text-xs text-ink-muted">
+                This agent calls no tools — it answers from its prompt and the
+                knowledge base only.
+              </p>
+            ) : (
+              agent.tools.map((t) => {
+                const executable = executableTools?.includes(t);
+                return (
+                  <div
+                    key={t}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-canvas/50 px-3 py-2.5"
+                  >
+                    <span className="flex items-center gap-2">
+                      <IconTool className="size-3.5 text-ink-faint" />
+                      <code className="font-mono text-[11px] text-ink">{t}</code>
+                    </span>
+                    {executableTools === null ? (
+                      <Skeleton className="h-4 w-20" />
+                    ) : executable ? (
+                      <Badge tone="ok">Executable</Badge>
+                    ) : (
+                      <Badge tone="warn">Agent-only</Badge>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </CardBody>
         </Card>
 
-        {/* ---------------------------- Status ---------------------------- */}
         <div className="space-y-5">
           <Card>
-            <CardHeader title="Status" description="Maps to is_active." />
-            <CardBody className="space-y-3">
-              <label className="flex cursor-pointer items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  checked={draft.is_active}
-                  onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })}
-                  className="mt-0.5 size-3.5 accent-[var(--color-accent)]"
-                />
-                <span className="text-xs leading-relaxed text-ink-muted">
-                  <span className="block font-medium text-ink">Active</span>
-                  Paused employees stay configured but are not offered for new work.
-                </span>
-              </label>
-              <div className="flex items-center gap-2 border-t border-line-soft pt-3">
-                <Badge tone={draft.is_active ? "ok" : "neutral"}>
-                  {draft.is_active ? "Active" : "Paused"}
-                </Badge>
-                <Badge tone={hasAgent ? "accent" : "warn"}>
-                  {hasAgent ? "Agent ready" : "No agent module"}
-                </Badge>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Record" description="Read-only fields." />
+            <CardHeader title="Module" description="Where this agent is defined." />
             <CardBody>
               <dl className="space-y-2.5 text-[11px]">
                 <div className="flex justify-between gap-3">
-                  <dt className="text-ink-faint">ID</dt>
-                  <dd className="truncate font-mono text-ink">{draft.id}</dd>
+                  <dt className="text-ink-faint">Role id</dt>
+                  <dd className="font-mono text-ink">{agent.id}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-ink-faint">Company</dt>
-                  <dd className="truncate font-mono text-ink">{draft.company_id}</dd>
+                  <dt className="text-ink-faint">Tools</dt>
+                  <dd className="tabular-nums text-ink">{agent.tools.length}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-faint">Created</dt>
-                  <dd className="text-ink">
-                    {new Date(draft.created_at).toLocaleDateString()}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-faint">Updated</dt>
-                  <dd className="text-ink">
-                    {new Date(draft.updated_at).toLocaleDateString()}
+                <div className="space-y-1">
+                  <dt className="text-ink-faint">Source</dt>
+                  <dd className="break-all font-mono text-[10px] text-ink">
+                    {agent.source}
                   </dd>
                 </div>
               </dl>
             </CardBody>
           </Card>
+
+          <Card>
+            <CardHeader title="Run its tools" description="Via the AI router." />
+            <CardBody className="space-y-3">
+              <p className="text-[11px] leading-relaxed text-ink-muted">
+                Executable tools can be run directly against your workspace data.
+              </p>
+              <Link href="/ai-actions">
+                <Button variant="primary" className="w-full">
+                  <IconRobot className="size-3.5" />
+                  Open AI actions
+                </Button>
+              </Link>
+            </CardBody>
+          </Card>
         </div>
       </div>
-
-      {/* -------------------------- Permissions -------------------------- */}
-      <Card>
-        <CardHeader
-          title="Tool permissions"
-          description="Which tools this AI employee may call. Maps to the permissions JSON column."
-        />
-        <CardBody>
-          <fieldset className="grid gap-3 sm:grid-cols-2">
-            <legend className="sr-only">Tool permissions for this AI employee</legend>
-          {TOOL_CATALOGUE.map((tool) => {
-            const granted = draft.permissions[tool.key] === true;
-            return (
-              <label
-                key={tool.key}
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 transition",
-                  granted
-                    ? "border-accent/30 bg-accent/[0.06]"
-                    : "border-line-soft bg-canvas/50 hover:border-line",
-                  !tool.implemented && "opacity-70",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={granted}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      permissions: {
-                        ...draft.permissions,
-                        [tool.key]: e.target.checked,
-                      },
-                    })
-                  }
-                  className="mt-0.5 size-3.5 shrink-0 accent-[var(--color-accent)]"
-                />
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <IconTool className="size-3.5 shrink-0 text-ink-faint" />
-                    <code className="font-mono text-[11px] font-medium text-ink">
-                      {tool.label}
-                    </code>
-                    {tool.implemented ? (
-                      <Badge tone="ok">Implemented</Badge>
-                    ) : (
-                      <Badge tone="warn">Phase 2</Badge>
-                    )}
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-ink-muted">
-                    {tool.description}
-                  </p>
-                </div>
-              </label>
-            );
-          })}
-          </fieldset>
-        </CardBody>
-      </Card>
     </>
   );
 }
